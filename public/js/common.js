@@ -51,6 +51,24 @@ export async function login() {
   }
 }
 
+// 把 Firebase 登入錯誤轉成中文；使用者自己關掉登入視窗則不顯示
+function loginErrorText(e) {
+  switch (e.code) {
+    case "auth/popup-closed-by-user":
+    case "auth/cancelled-popup-request":
+    case "auth/user-cancelled":
+      return "";
+    case "auth/popup-blocked":
+      return "登入視窗被瀏覽器封鎖，請允許此網站開啟彈出式視窗後再試一次";
+    case "auth/unauthorized-domain":
+      return "此網址尚未加入 Firebase 已授權網域，請通知管理員";
+    case "auth/network-request-failed":
+      return "網路連線失敗，請稍後再試";
+    default:
+      return e.code ? `登入失敗（${e.code}）` : e.message;
+  }
+}
+
 export function logout() {
   return signOut(auth);
 }
@@ -90,7 +108,10 @@ export function watchUser(cb) {
 export function renderUserBox(el, user) {
   if (!user) {
     el.innerHTML = `<button class="btn" id="loginBtn">以學校帳號登入</button>`;
-    el.querySelector("#loginBtn").onclick = () => login().catch((e) => toast(e.message, true));
+    el.querySelector("#loginBtn").onclick = () => login().catch((e) => {
+      const msg = loginErrorText(e);
+      if (msg) toast(msg, true);
+    });
   } else {
     el.innerHTML = `<span class="who">${esc(user.name)}<small>${ROLE_LABEL[user.role] || ""}</small></span>
       <button class="btn ghost" id="logoutBtn">登出</button>`;
