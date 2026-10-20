@@ -16,7 +16,7 @@ export const ALLOWED_DOMAINS = ["chc.edu.tw", "hres.chc.edu.tw"];
 
 // 第一位（固定）管理員，用來在系統剛建立時登入設定其他管理員與主管
 // ⚠ 必須和 firestore.rules 裡的 bootstrapAdmins() 一致
-export const BOOTSTRAP_ADMINS = ["admin@chc.edu.tw"];
+export const BOOTSTRAP_ADMINS = ["hres.noc@hres.chc.edu.tw"];
 
 export const SITE_TITLE = "教室借用系統";
 

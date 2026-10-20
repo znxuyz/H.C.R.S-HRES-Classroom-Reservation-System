@@ -45,8 +45,8 @@
 4. 專案設定 → 一般 → 新增「網頁應用程式」，複製 `firebaseConfig`。
 
 ### 2. 修改設定
-1. `public/js/config.js`：貼上 `firebaseConfig`，並把 `BOOTSTRAP_ADMINS` 改成第一位管理員的信箱。
-2. `firestore.rules`：把 `bootstrapAdmins()` 改成**同一個**信箱。
+1. `public/js/config.js`：貼上 `firebaseConfig`。
+2. 初始管理員已設定為 `hres.noc@hres.chc.edu.tw`（`config.js` 的 `BOOTSTRAP_ADMINS` 與 `firestore.rules` 的 `bootstrapAdmins()`，兩處需一致）。
 
 ### 3. 部署
 
@@ -81,7 +81,7 @@ firebase deploy        # 部署網站、Firestore 規則與索引
 部署完成後網址為 `https://<專案ID>.web.app`。若使用自訂網域，請到 Authentication → 設定 → 已授權網域 加入該網域。
 
 ### 4. 初始設定
-用第一位管理員登入 → 右上「管理後台」：
+用初始管理員 `hres.noc@hres.chc.edu.tw` 登入 → 右上「管理後台」：
 1. **教室設定**：新增教室（可排序、暫停開放）。
 2. **節次設定**：調整各節名稱與時間（預設為國小常見作息）。
 3. **帳號權限**：加入主管（會收到申請通知信）與其他管理員。
