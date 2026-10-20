@@ -177,7 +177,6 @@ function readForm() {
   const className = $("fClass").value.trim();
   const course = $("fCourse").value.trim();
   const purpose = $("fPurpose").value.trim();
-  if (!className && !course && !purpose) throw new Error("班級、課程、用途請至少填一項");
 
   const r = {
     roomId: room.id,
