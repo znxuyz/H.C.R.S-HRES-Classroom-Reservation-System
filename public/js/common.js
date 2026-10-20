@@ -38,7 +38,36 @@ export function isAllowedEmail(email) {
 // 頁面上標記 class="domain-text" 的地方顯示允許的網域
 document.querySelectorAll(".domain-text").forEach((el) => (el.textContent = DOMAIN_TEXT));
 
+// ---------- App 內建瀏覽器 ----------
+// LINE、Facebook、Instagram 等 App 內建的瀏覽器會擋住 Google 登入，需改用 Chrome / Safari
+const UA = navigator.userAgent;
+const IN_LINE = /\bLine\//i.test(UA);
+export const IN_APP_BROWSER = IN_LINE || /FBAN|FBAV|FB_IAB|Instagram|MicroMessenger|; wv\)/i.test(UA);
+const IN_APP_MSG = "LINE、Facebook 等 App 內建的瀏覽器無法使用 Google 登入，請改用 Chrome 或 Safari 開啟本網站";
+
+// 在 LINE 開啟時，網址加上 openExternalBrowser=1 會自動改用手機預設瀏覽器開啟
+if (IN_LINE && !new URLSearchParams(location.search).has("openExternalBrowser")) {
+  const url = new URL(location.href);
+  url.searchParams.set("openExternalBrowser", "1");
+  location.replace(url.href);
+}
+
+if (IN_APP_BROWSER) {
+  const bar = document.createElement("div");
+  bar.className = "config-warning";
+  bar.innerHTML = `⚠ ${IN_APP_MSG}。<button type="button" class="btn small ghost">複製網址</button>`;
+  bar.querySelector("button").onclick = () => {
+    const url = location.href.replace(/[?&]openExternalBrowser=1/, "");
+    navigator.clipboard?.writeText(url).then(
+      () => toast("已複製網址，請貼到 Chrome 或 Safari 開啟"),
+      () => prompt("請複製以下網址，貼到 Chrome 或 Safari 開啟：", url),
+    ) ?? prompt("請複製以下網址，貼到 Chrome 或 Safari 開啟：", url);
+  };
+  document.body.prepend(bar);
+}
+
 export async function login() {
+  if (IN_APP_BROWSER) throw new Error(IN_APP_MSG);
   const provider = new GoogleAuthProvider();
   // hd 只能指定單一網域，多個網域時改由登入後檢查
   provider.setCustomParameters(ALLOWED_DOMAINS.length === 1
@@ -64,8 +93,11 @@ function loginErrorText(e) {
       return "此網址尚未加入 Firebase 已授權網域，請通知管理員";
     case "auth/network-request-failed":
       return "網路連線失敗，請稍後再試";
+    case "auth/web-storage-unsupported":
+    case "auth/operation-not-supported-in-this-environment":
+      return "此瀏覽器不支援 Google 登入，請改用 Chrome 或 Safari 開啟本網站";
     default:
-      return e.code ? `登入失敗（${e.code}）` : e.message;
+      return e.code ? `登入失敗（${e.code}），請重新整理後再試；若仍失敗請改用 Chrome 或 Safari` : e.message;
   }
 }
 
