@@ -54,10 +54,10 @@
 
 #### 方式 A：GitHub Pages（前端）＋ Firebase（資料）
 1. GitHub repo → **Settings → Pages → Build and deployment → Source** 選 **GitHub Actions**。
-2. 把程式合併到 `main` 分支，`.github/workflows/pages.yml` 會自動把 `public/` 部署上去
-   （也可到 Actions 分頁手動執行「Deploy to GitHub Pages」）。
-   網址為 `https://znxuyz.github.io/H.C.R.S-HRES-Classroom-Reservation-System/`。
-3. Firebase 主控台 → **Authentication → 設定 → 已授權網域** → 新增 `znxuyz.github.io`
+2. 同一頁按 **Static HTML** 的 **Configure**，把產生的設定檔中 `path: '.'` 改成 `path: 'public'`，
+   按 **Commit changes**。之後 `main` 分支有更新就會自動部署。
+   網址為 `https://<帳號>.github.io/H.C.R.S-HRES-Classroom-Reservation-System/`。
+3. Firebase 主控台 → **Authentication → 設定 → 已授權網域** → 新增 `<帳號>.github.io`
    （沒加的話 Google 登入會出現 `auth/unauthorized-domain` 錯誤）。
 4. Firestore 規則與索引仍要設定到 Firebase，兩種做法擇一：
    - 主控台：Firestore → **規則**，貼上 `firestore.rules` 內容後發布；
