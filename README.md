@@ -50,6 +50,26 @@
 3. 複製 `.firebaserc.example` 為 `.firebaserc`，填入專案 ID。
 
 ### 3. 部署
+
+前端是純靜態網頁（`public/` 資料夾），可放在 **GitHub Pages** 或 **Firebase Hosting**，二選一即可；資料一律存在 Firebase。
+
+#### 方式 A：GitHub Pages（前端）＋ Firebase（資料）
+1. GitHub repo → **Settings → Pages → Build and deployment → Source** 選 **GitHub Actions**。
+2. 把程式合併到 `main` 分支，`.github/workflows/pages.yml` 會自動把 `public/` 部署上去
+   （也可到 Actions 分頁手動執行「Deploy to GitHub Pages」）。
+   網址為 `https://znxuyz.github.io/H.C.R.S-HRES-Classroom-Reservation-System/`。
+3. Firebase 主控台 → **Authentication → 設定 → 已授權網域** → 新增 `znxuyz.github.io`
+   （沒加的話 Google 登入會出現 `auth/unauthorized-domain` 錯誤）。
+4. Firestore 規則與索引仍要設定到 Firebase，兩種做法擇一：
+   - 主控台：Firestore → **規則**，貼上 `firestore.rules` 內容後發布；
+     索引可在第一次開啟月曆時，依瀏覽器 Console 錯誤訊息中的連結一鍵建立
+     （`reservations`：`status` 遞增 ＋ `endDate` 遞增）。
+   - 指令：`firebase deploy --only firestore`
+
+> 注意：私人（private）repo 使用 GitHub Pages 需要付費方案；免費帳號請將 repo 設為公開。
+> `config.js` 裡的 Firebase 設定公開是正常的，安全性由 Firestore 規則把關。
+
+#### 方式 B：Firebase Hosting
 ```bash
 npm install -g firebase-tools
 firebase login
