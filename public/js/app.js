@@ -99,11 +99,12 @@ function openDay(ds) {
   const list = reservationsOn(ds, roomId);
   $("dayTitle").textContent = `${ds}（${WEEKDAY_LABEL[parseDate(ds).getDay()]}）借用情形`;
 
-  let html = `<table class="grid"><thead><tr><th>教室</th>${state.periods
-    .map((p) => `<th>${esc(p.name)}<small>${esc(p.start)}-${esc(p.end)}</small></th>`).join("")}</tr></thead><tbody>`;
-  for (const room of rooms) {
-    html += `<tr><th>${esc(room.name)}</th>`;
-    for (const p of state.periods) {
+  // 直列為節次、橫欄為教室
+  let html = `<table class="grid"><thead><tr><th>節次</th>${rooms
+    .map((room) => `<th>${esc(room.name)}</th>`).join("")}</tr></thead><tbody>`;
+  for (const p of state.periods) {
+    html += `<tr><th>${esc(p.name)}<small>${esc(p.start)}-${esc(p.end)}</small></th>`;
+    for (const room of rooms) {
       const r = list.find((x) => x.roomId === room.id && x.periodIds.includes(p.id));
       html += r
         ? `<td class="busy" style="--c:${roomColor(state.rooms, room.id)}" title="${esc(usageText(r))}">${esc(teacherOf(r))}<small>${esc(usageText(r))}</small></td>`

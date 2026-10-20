@@ -240,8 +240,9 @@ th { background: #f9fafb; font-weight: 600; text-align: left; }
 th small, td small { display: block; color: var(--muted); font-weight: 400; font-size: 12px; }
 .nowrap { white-space: nowrap; }
 
-table.grid th, table.grid td { text-align: center; min-width: 80px; }
-table.grid tbody th { text-align: left; white-space: nowrap; }
+table.grid th, table.grid td { text-align: center; min-width: 90px; }
+table.grid thead th { text-align: center; }
+table.grid tbody th, table.grid thead th:first-child { text-align: left; white-space: nowrap; width: 1%; min-width: 0; }
 table.grid td.free { color: #cbd5e1; }
 table.grid td.busy { background: color-mix(in srgb, var(--c) 14%, white); font-weight: 600; font-size: 13px; }
 
