@@ -284,3 +284,12 @@ table.data td input:not([type="checkbox"]) { width: 100%; min-width: 90px; }
   .chip { font-size: 10px; padding: 0 3px; }
   .list .item { flex-direction: column; }
 }
+
+.config-warning {
+  padding: 10px 20px;
+  background: #fef3c7;
+  color: #92400e;
+  border-bottom: 1px solid #fcd34d;
+  font-size: 14px;
+}
+.config-warning code { background: #fde68a; padding: 0 4px; border-radius: 4px; }

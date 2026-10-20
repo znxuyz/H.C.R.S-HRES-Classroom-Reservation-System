@@ -346,6 +346,7 @@ setupTabs($("tabs"), (tab) => {
   if (tab === "roles") loadRoles();
 });
 
+renderUserBox($("userBox"), null);
 watchUser(async (user) => {
   state.user = user;
   renderUserBox($("userBox"), user);

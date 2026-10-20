@@ -330,6 +330,19 @@ async function loadMine() {
 
 setupTabs($("tabs"));
 
+// 先顯示登入按鈕並監聽登入狀態，不受資料讀取成敗影響
+renderUserBox($("userBox"), null);
+watchUser((user) => {
+  state.user = user;
+  renderUserBox($("userBox"), user);
+  $("adminLink").hidden = !user?.isManager;
+  $("applyForm").hidden = !user;
+  if (user && !$("fTeacher").value) $("fTeacher").value = user.name;
+  document.querySelectorAll(".need-login").forEach((el) => (el.hidden = !!user));
+  document.querySelectorAll(".manager-only").forEach((el) => (el.hidden = !user?.isManager));
+  loadMine().catch((e) => console.error(e));
+});
+
 async function init() {
   [state.rooms, state.periods] = await Promise.all([loadRooms(), loadPeriods()]);
   $("roomFilter").innerHTML = `<option value="">全部教室</option>` +
@@ -337,17 +350,6 @@ async function init() {
   buildApplyForm();
   updateTypeFields();
   loadMonth();
-
-  watchUser((user) => {
-    state.user = user;
-    renderUserBox($("userBox"), user);
-    $("adminLink").hidden = !user?.isManager;
-    $("applyForm").hidden = !user;
-    if (user && !$("fTeacher").value) $("fTeacher").value = user.name;
-    document.querySelectorAll(".need-login").forEach((el) => (el.hidden = !!user));
-    document.querySelectorAll(".manager-only").forEach((el) => (el.hidden = !user?.isManager));
-    loadMine().catch((e) => console.error(e));
-  });
 }
 
 init().catch((e) => {

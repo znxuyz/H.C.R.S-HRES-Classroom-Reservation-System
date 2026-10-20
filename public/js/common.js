@@ -12,6 +12,15 @@ import {
 export * from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 export { SITE_TITLE };
 
+// config.js 尚未填入 Firebase 設定時，在頁面最上方顯示提醒
+export const CONFIG_MISSING = !firebaseConfig.apiKey || firebaseConfig.apiKey.startsWith("YOUR_");
+if (CONFIG_MISSING) {
+  const bar = document.createElement("div");
+  bar.className = "config-warning";
+  bar.innerHTML = "⚠ 尚未設定 Firebase：請編輯 <code>public/js/config.js</code>，把 <code>firebaseConfig</code> 換成 Firebase 主控台提供的設定（詳見 README「修改設定」）。";
+  document.body.prepend(bar);
+}
+
 export const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
