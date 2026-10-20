@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>管理後台｜教室借用系統</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><a href="index.html" id="siteTitle">教室借用系統</a> <small>管理後台</small></div>
+    <nav class="tabs" id="tabs" hidden>
+      <button data-tab="pending" class="active">待審核 <span class="count" id="pendingCount"></span></button>
+      <button data-tab="all">所有借用</button>
+      <button data-tab="rooms" class="admin-only">教室設定</button>
+      <button data-tab="periods" class="admin-only">節次設定</button>
+      <button data-tab="roles" class="admin-only">帳號權限</button>
+    </nav>
+    <div class="user" id="userBox"></div>
+  </header>
+
+  <main>
+    <div id="denied" class="card">請以管理員或主管帳號登入。</div>
+
+    <!-- 待審核 -->
+    <section id="tab-pending" class="tab active" hidden>
+      <div id="pendingList" class="list"></div>
+    </section>
+
+    <!-- 所有借用 -->
+    <section id="tab-all" class="tab" hidden>
+      <div class="toolbar">
+        <label>狀態
+          <select id="aStatus">
+            <option value="">全部</option>
+            <option value="pending">待審核</option>
+            <option value="approved" selected>已核准</option>
+            <option value="rejected">未核准</option>
+            <option value="cancelled">已取消</option>
+          </select>
+        </label>
+        <label>教室 <select id="aRoom"></select></label>
+        <label>月份 <input type="month" id="aMonth"></label>
+        <button class="btn ghost" id="aClearMonth">不限月份</button>
+        <span class="spacer"></span>
+        <button class="btn ghost" id="aExport">匯出 CSV</button>
+      </div>
+      <div class="table-wrap"><table class="data" id="allTable"></table></div>
+    </section>
+
+    <!-- 教室設定 -->
+    <section id="tab-rooms" class="tab" hidden>
+      <form id="roomForm" class="card form row">
+        <label class="field">教室名稱 <input id="rName" required maxlength="50" placeholder="例：電腦教室(一)"></label>
+        <label class="field">說明 <input id="rNote" maxlength="100" placeholder="位置、容納人數等（選填）"></label>
+        <div class="actions"><button class="btn">新增教室</button></div>
+      </form>
+      <div class="table-wrap"><table class="data" id="roomTable"></table></div>
+    </section>
+
+    <!-- 節次設定 -->
+    <section id="tab-periods" class="tab" hidden>
+      <div class="card">
+        <p class="hint">設定每一節課的名稱與時間，順序即為顯示順序。刪除節次不會刪除既有借用，但該節次將不再顯示。</p>
+        <div class="table-wrap"><table class="data" id="periodTable"></table></div>
+        <div class="actions">
+          <button class="btn ghost" id="addPeriod">＋ 新增節次</button>
+          <button class="btn" id="savePeriods">儲存節次設定</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 帳號權限 -->
+    <section id="tab-roles" class="tab" hidden>
+      <form id="roleForm" class="card form row">
+        <label class="field">帳號 Email <input id="roleEmail" type="email" required placeholder="name@chc.edu.tw"></label>
+        <label class="field">姓名／職稱 <input id="roleName" maxlength="50" placeholder="例：教務主任 王小明"></label>
+        <label class="field">身分
+          <select id="roleRole">
+            <option value="supervisor">主管（可審核借用、收到申請通知信）</option>
+            <option value="admin">管理員（可審核及修改所有設定）</option>
+          </select>
+        </label>
+        <div class="actions"><button class="btn">新增 / 更新</button></div>
+      </form>
+      <div class="table-wrap"><table class="data" id="roleTable"></table></div>
+      <p class="hint">未列在此的 @chc.edu.tw 帳號皆為一般教師。申請通知信會寄給所有「主管」；若沒有設定主管則寄給管理員。</p>
+    </section>
+  </main>
+
+  <div id="toast"></div>
+  <script type="module" src="js/admin.js"></script>
+</body>
+</html>

@@ -1,0 +1,350 @@
+import {
+  db, collection, doc, getDocs, addDoc, updateDoc, query, where, serverTimestamp,
+  watchUser, renderUserBox, loadRooms, loadPeriods, setupTabs, toast, esc, SITE_TITLE,
+  WEEKDAY_LABEL, TYPE_LABEL, STATUS_LABEL, pad, today, parseDate, addDays, monthRange,
+  occursOn, occurrences, findConflictDate, periodNames, describeSchedule, roomColor,
+  sendMail, managerEmails, reservationMailHtml,
+} from "./common.js";
+
+const $ = (id) => document.getElementById(id);
+
+const state = {
+  user: null,
+  rooms: [],
+  periods: [],
+  year: new Date().getFullYear(),
+  month: new Date().getMonth(),
+  monthRes: [],
+};
+
+document.title = SITE_TITLE;
+$("siteTitle").textContent = SITE_TITLE;
+
+// ===================== 借用狀況（月曆） =====================
+
+async function loadMonth() {
+  const { start, end } = monthRange(state.year, state.month);
+  $("monthLabel").textContent = `${state.year} 年 ${state.month + 1} 月`;
+  try {
+    const snap = await getDocs(query(
+      collection(db, "reservations"),
+      where("status", "==", "approved"),
+      where("endDate", ">=", start),
+    ));
+    state.monthRes = snap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((r) => r.startDate <= end);
+  } catch (e) {
+    console.error(e);
+    toast("讀取借用資料失敗：" + e.message, true);
+    state.monthRes = [];
+  }
+  renderCalendar();
+}
+
+function reservationsOn(ds, roomId = $("roomFilter").value) {
+  return state.monthRes.filter((r) => (!roomId || r.roomId === roomId) && occursOn(r, ds));
+}
+
+function renderCalendar() {
+  const roomId = $("roomFilter").value;
+  const first = new Date(state.year, state.month, 1);
+  const lead = (first.getDay() + 6) % 7; // 週一為第一欄
+  const { end } = monthRange(state.year, state.month);
+  const days = parseDate(end).getDate();
+  const t = today();
+
+  let html = ["一", "二", "三", "四", "五", "六", "日"]
+    .map((w, i) => `<div class="cal-head${i >= 5 ? " weekend" : ""}">${w}</div>`).join("");
+  for (let i = 0; i < lead; i++) html += `<div class="cal-cell empty"></div>`;
+
+  for (let d = 1; d <= days; d++) {
+    const ds = `${state.year}-${pad(state.month + 1)}-${pad(d)}`;
+    const dow = parseDate(ds).getDay();
+    const list = reservationsOn(ds, roomId);
+    let chips = "";
+    if (roomId) {
+      chips = list
+        .sort((a, b) => periodIndex(a.periodIds) - periodIndex(b.periodIds))
+        .map((r) => `<span class="chip" style="--c:${roomColor(state.rooms, r.roomId)}">${esc(periodNames(r.periodIds, state.periods).join("、"))} ${esc(r.applicantName)}</span>`)
+        .join("");
+    } else {
+      const byRoom = new Map();
+      for (const r of list) {
+        if (!byRoom.has(r.roomId)) byRoom.set(r.roomId, { name: r.roomName, ids: new Set() });
+        r.periodIds.forEach((p) => byRoom.get(r.roomId).ids.add(p));
+      }
+      chips = [...byRoom.entries()]
+        .sort((a, b) => roomIndex(a[0]) - roomIndex(b[0]))
+        .map(([rid, v]) => `<span class="chip" style="--c:${roomColor(state.rooms, rid)}">${esc(v.name)}｜${esc(periodNames([...v.ids], state.periods).join("、"))}</span>`)
+        .join("");
+    }
+    html += `<button class="cal-cell${dow === 0 || dow === 6 ? " weekend" : ""}${ds === t ? " today" : ""}" data-date="${ds}">
+      <span class="day-num">${d}</span>${chips}</button>`;
+  }
+  $("calendar").innerHTML = html;
+  $("calendar").querySelectorAll(".cal-cell[data-date]").forEach((c) => (c.onclick = () => openDay(c.dataset.date)));
+}
+
+function roomIndex(id) {
+  const i = state.rooms.findIndex((r) => r.id === id);
+  return i < 0 ? 999 : i;
+}
+
+function periodIndex(ids) {
+  return Math.min(...ids.map((id) => state.periods.findIndex((p) => p.id === id)));
+}
+
+function openDay(ds) {
+  const roomId = $("roomFilter").value;
+  const rooms = roomId ? state.rooms.filter((r) => r.id === roomId) : state.rooms;
+  const list = reservationsOn(ds, roomId);
+  $("dayTitle").textContent = `${ds}（${WEEKDAY_LABEL[parseDate(ds).getDay()]}）借用情形`;
+
+  let html = `<table class="grid"><thead><tr><th>教室</th>${state.periods
+    .map((p) => `<th>${esc(p.name)}<small>${esc(p.start)}-${esc(p.end)}</small></th>`).join("")}</tr></thead><tbody>`;
+  for (const room of rooms) {
+    html += `<tr><th>${esc(room.name)}</th>`;
+    for (const p of state.periods) {
+      const r = list.find((x) => x.roomId === room.id && x.periodIds.includes(p.id));
+      html += r
+        ? `<td class="busy" style="--c:${roomColor(state.rooms, room.id)}" title="${esc(r.purpose)}">${esc(r.applicantName)}<small>${esc(r.purpose)}</small></td>`
+        : `<td class="free">—</td>`;
+    }
+    html += `</tr>`;
+  }
+  html += `</tbody></table>`;
+  if (!rooms.length) html = `<p class="hint">尚未設定教室。</p>`;
+  $("dayBody").innerHTML = html;
+  $("dayDialog").showModal();
+}
+
+$("dayClose").onclick = () => $("dayDialog").close();
+$("dayDialog").addEventListener("click", (e) => { if (e.target === $("dayDialog")) $("dayDialog").close(); });
+
+function shiftMonth(n) {
+  const d = new Date(state.year, state.month + n, 1);
+  state.year = d.getFullYear();
+  state.month = d.getMonth();
+  loadMonth();
+}
+$("prevMonth").onclick = () => shiftMonth(-1);
+$("nextMonth").onclick = () => shiftMonth(1);
+$("thisMonth").onclick = () => {
+  state.year = new Date().getFullYear();
+  state.month = new Date().getMonth();
+  loadMonth();
+};
+$("roomFilter").onchange = renderCalendar;
+
+// ===================== 申請借用 =====================
+
+function buildApplyForm() {
+  $("fRoom").innerHTML = state.rooms.length
+    ? state.rooms.map((r) => `<option value="${r.id}">${esc(r.name)}${r.note ? `（${esc(r.note)}）` : ""}</option>`).join("")
+    : `<option value="">（尚未設定教室）</option>`;
+  $("fWeekdays").innerHTML = [1, 2, 3, 4, 5, 6, 0]
+    .map((d) => `<label class="check"><input type="checkbox" name="weekday" value="${d}"> 週${WEEKDAY_LABEL[d]}</label>`).join("");
+  $("fMonthDays").innerHTML = Array.from({ length: 31 }, (_, i) => i + 1)
+    .map((d) => `<label class="check"><input type="checkbox" name="monthDay" value="${d}"> ${d}</label>`).join("");
+  $("fPeriods").innerHTML = state.periods
+    .map((p) => `<label class="check"><input type="checkbox" name="period" value="${p.id}"> ${esc(p.name)}<small>${esc(p.start)}-${esc(p.end)}</small></label>`).join("");
+  $("fDate").min = today();
+  $("fStart").value ||= today();
+}
+
+function currentType() {
+  return document.querySelector('input[name="type"]:checked').value;
+}
+
+function updateTypeFields() {
+  const type = currentType();
+  document.querySelectorAll("#applyForm [data-for]").forEach((el) => {
+    el.hidden = !el.dataset.for.split(" ").includes(type);
+  });
+  updatePreview();
+}
+document.querySelectorAll('input[name="type"]').forEach((el) => (el.onchange = updateTypeFields));
+
+const checkedValues = (name) => [...document.querySelectorAll(`input[name="${name}"]:checked`)].map((el) => el.value);
+
+// 讀取表單並檢查，回傳借用資料或丟出錯誤訊息
+function readForm() {
+  const type = currentType();
+  const room = state.rooms.find((r) => r.id === $("fRoom").value);
+  if (!room) throw new Error("請選擇教室");
+  const periodIds = checkedValues("period");
+  if (!periodIds.length) throw new Error("請至少選擇一個節次");
+  const purpose = $("fPurpose").value.trim();
+  if (!purpose) throw new Error("請填寫用途 / 班級");
+
+  const r = {
+    roomId: room.id,
+    roomName: room.name,
+    type,
+    periodIds,
+    purpose,
+    note: $("fNote").value.trim(),
+  };
+
+  if (type === "once") {
+    const date = $("fDate").value;
+    if (!date) throw new Error("請選擇日期");
+    if (date < today()) throw new Error("不能借用過去的日期");
+    Object.assign(r, { date, startDate: date, endDate: date });
+  } else {
+    const startDate = $("fStart").value;
+    const endDate = $("fEnd").value;
+    if (!startDate || !endDate) throw new Error("請設定開始與結束日期");
+    if (endDate < startDate) throw new Error("結束日期不能早於開始日期");
+    if (endDate > addDays(startDate, 366)) throw new Error("固定借用期間最長一年");
+    Object.assign(r, { startDate, endDate });
+    if (type === "weekly") {
+      r.weekdays = checkedValues("weekday").map(Number);
+      if (!r.weekdays.length) throw new Error("請至少選擇一個星期");
+    } else {
+      r.monthDays = checkedValues("monthDay").map(Number);
+      if (!r.monthDays.length) throw new Error("請至少選擇一個日期");
+    }
+    if (!occurrences(r).length) throw new Error("此設定在期間內沒有任何借用日期");
+  }
+  return r;
+}
+
+function updatePreview() {
+  let text = "";
+  try {
+    const r = readForm();
+    const dates = occurrences(r);
+    text = `共 ${dates.length} 天：${dates.slice(0, 8).join("、")}${dates.length > 8 ? " …" : ""}`;
+  } catch {
+    text = "";
+  }
+  $("applyPreview").textContent = text;
+}
+$("applyForm").addEventListener("change", updatePreview);
+$("applyForm").addEventListener("input", updatePreview);
+
+$("applyForm").onsubmit = async (e) => {
+  e.preventDefault();
+  if (!state.user) return toast("請先登入", true);
+  let r;
+  try {
+    r = readForm();
+  } catch (err) {
+    return toast(err.message, true);
+  }
+
+  const btn = $("applySubmit");
+  btn.disabled = true;
+  try {
+    // 衝突檢查
+    const snap = await getDocs(query(collection(db, "reservations"), where("roomId", "==", r.roomId)));
+    const existing = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    for (const x of existing.filter((x) => x.status === "approved")) {
+      const ds = findConflictDate(r, x);
+      if (ds) throw new Error(`${ds} ${periodNames(x.periodIds, state.periods).join("、")} 已被 ${x.applicantName} 借用`);
+    }
+    const pendingConflicts = existing.filter((x) => x.status === "pending" && findConflictDate(r, x));
+    if (pendingConflicts.length &&
+        !confirm(`已有 ${pendingConflicts.length} 筆待審核的申請與此時段重疊（${pendingConflicts.map((x) => x.applicantName).join("、")}），仍要送出嗎？`)) {
+      return;
+    }
+
+    const auto = state.user.isManager && $("fAutoApprove").checked;
+    Object.assign(r, {
+      applicantEmail: state.user.email,
+      applicantName: state.user.name,
+      status: auto ? "approved" : "pending",
+      createdAt: serverTimestamp(),
+      ...(auto ? { reviewedBy: state.user.email, reviewedByName: state.user.name, reviewedAt: serverTimestamp() } : {}),
+    });
+    await addDoc(collection(db, "reservations"), r);
+
+    if (!auto) {
+      const adminUrl = new URL("admin.html", location.href).href;
+      sendMail(
+        await managerEmails(),
+        `[教室借用申請] ${r.applicantName} 申請借用 ${r.roomName}`,
+        `<p>有一筆新的教室借用申請等待審核：</p>${reservationMailHtml(r, state.periods)}
+         <p><a href="${adminUrl}">前往管理後台審核</a></p>`,
+      );
+    }
+    toast(auto ? "已新增並核准" : "申請已送出，等待主管審核");
+    $("fPurpose").value = "";
+    $("fNote").value = "";
+    loadMonth();
+    loadMine();
+  } catch (err) {
+    console.error(err);
+    toast(err.message, true);
+  } finally {
+    btn.disabled = false;
+  }
+};
+
+// ===================== 我的申請 =====================
+
+async function loadMine() {
+  if (!state.user) {
+    $("mineList").innerHTML = "";
+    return;
+  }
+  const snap = await getDocs(query(collection(db, "reservations"), where("applicantEmail", "==", state.user.email)));
+  const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+    .sort((a, b) => (b.createdAt?.seconds ?? 0) - (a.createdAt?.seconds ?? 0));
+  if (!list.length) {
+    $("mineList").innerHTML = `<div class="card hint">尚無申請紀錄。</div>`;
+    return;
+  }
+  $("mineList").innerHTML = list.map((r) => `
+    <div class="card item">
+      <div class="item-main">
+        <div class="item-title">${esc(r.roomName)} <span class="badge ${r.status}">${STATUS_LABEL[r.status]}</span></div>
+        <div>${TYPE_LABEL[r.type]}｜${esc(describeSchedule(r))}</div>
+        <div>節次：${esc(periodNames(r.periodIds, state.periods).join("、"))}</div>
+        <div class="muted">用途：${esc(r.purpose)}${r.reviewNote ? `｜審核意見：${esc(r.reviewNote)}` : ""}</div>
+      </div>
+      ${["pending", "approved"].includes(r.status) && r.endDate >= today()
+        ? `<button class="btn danger ghost" data-cancel="${r.id}">取消申請</button>` : ""}
+    </div>`).join("");
+  $("mineList").querySelectorAll("[data-cancel]").forEach((b) => (b.onclick = async () => {
+    if (!confirm("確定要取消這筆借用嗎？")) return;
+    try {
+      await updateDoc(doc(db, "reservations", b.dataset.cancel), {
+        status: "cancelled", cancelledAt: serverTimestamp(), cancelledBy: state.user.email,
+      });
+      toast("已取消");
+      loadMine();
+      loadMonth();
+    } catch (err) {
+      toast(err.message, true);
+    }
+  }));
+}
+
+// ===================== 初始化 =====================
+
+setupTabs($("tabs"));
+
+async function init() {
+  [state.rooms, state.periods] = await Promise.all([loadRooms(), loadPeriods()]);
+  $("roomFilter").innerHTML = `<option value="">全部教室</option>` +
+    state.rooms.map((r) => `<option value="${r.id}">${esc(r.name)}</option>`).join("");
+  buildApplyForm();
+  updateTypeFields();
+  loadMonth();
+
+  watchUser((user) => {
+    state.user = user;
+    renderUserBox($("userBox"), user);
+    $("adminLink").hidden = !user?.isManager;
+    $("applyForm").hidden = !user;
+    document.querySelectorAll(".need-login").forEach((el) => (el.hidden = !!user));
+    document.querySelectorAll(".manager-only").forEach((el) => (el.hidden = !user?.isManager));
+    loadMine().catch((e) => console.error(e));
+  });
+}
+
+init().catch((e) => {
+  console.error(e);
+  toast("初始化失敗，請確認 js/config.js 的 Firebase 設定：" + e.message, true);
+});

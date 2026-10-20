@@ -1,0 +1,82 @@
+rules_version = '2';
+
+// 教室借用系統 Firestore 安全性規則
+// ⚠ 部署前請把 bootstrapAdmins() 裡的信箱改成學校實際的第一位管理員
+//   （需與 public/js/config.js 的 BOOTSTRAP_ADMINS 一致）
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function bootstrapAdmins() {
+      return ['admin@chc.edu.tw'];
+    }
+
+    function signedIn() {
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && request.auth.token.email.lower().matches('.*@chc[.]edu[.]tw$');
+    }
+
+    function myEmail() {
+      return request.auth.token.email.lower();
+    }
+
+    function myRole() {
+      return exists(/databases/$(database)/documents/roles/$(myEmail()))
+        ? get(/databases/$(database)/documents/roles/$(myEmail())).data.role
+        : '';
+    }
+
+    function isAdmin() {
+      return signedIn() && (myEmail() in bootstrapAdmins() || myRole() == 'admin');
+    }
+
+    // 管理員或主管
+    function isManager() {
+      return signedIn() && (myEmail() in bootstrapAdmins() || myRole() in ['admin', 'supervisor']);
+    }
+
+    // 教室清單、節次設定：所有人可讀（公開借用狀況需要），僅管理員可改
+    match /rooms/{roomId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /settings/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // 角色：doc id = 小寫 email，role = 'admin' | 'supervisor'
+    match /roles/{email} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    match /reservations/{id} {
+      // 未登入者只能看到已核准的借用；登入教師可看全部（用來檢查衝突）
+      allow read: if resource.data.status == 'approved' || signedIn();
+
+      // 申請：只能以自己的身分申請；一般教師只能送出「待審核」，管理員/主管可直接核准
+      allow create: if signedIn()
+        && request.resource.data.applicantEmail == myEmail()
+        && (request.resource.data.status == 'pending'
+            || (request.resource.data.status == 'approved' && isManager()));
+
+      // 管理員/主管可審核；申請人只能把自己的申請改為「已取消」
+      allow update: if isManager()
+        || (signedIn()
+            && resource.data.applicantEmail == myEmail()
+            && request.resource.data.status == 'cancelled'
+            && request.resource.data.diff(resource.data).affectedKeys()
+                 .hasOnly(['status', 'cancelledAt', 'cancelledBy']));
+
+      allow delete: if isAdmin();
+    }
+
+    // 寄信佇列（給 Firebase「Trigger Email」擴充功能使用），只允許寫入不允許讀取
+    match /mail/{id} {
+      allow create: if signedIn();
+      allow read, update, delete: if false;
+    }
+  }
+}

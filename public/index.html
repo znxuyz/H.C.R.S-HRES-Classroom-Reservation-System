@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>教室借用系統</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand" id="siteTitle">教室借用系統</div>
+    <nav class="tabs" id="tabs">
+      <button data-tab="calendar" class="active">借用狀況</button>
+      <button data-tab="apply">申請借用</button>
+      <button data-tab="mine">我的申請</button>
+      <a href="admin.html" id="adminLink" hidden>管理後台</a>
+    </nav>
+    <div class="user" id="userBox"></div>
+  </header>
+
+  <main>
+    <!-- 公開借用狀況 -->
+    <section id="tab-calendar" class="tab active">
+      <div class="toolbar">
+        <button class="btn ghost" id="prevMonth" aria-label="上個月">‹</button>
+        <h2 id="monthLabel"></h2>
+        <button class="btn ghost" id="nextMonth" aria-label="下個月">›</button>
+        <button class="btn ghost" id="thisMonth">本月</button>
+        <span class="spacer"></span>
+        <label>教室 <select id="roomFilter"></select></label>
+      </div>
+      <div id="calendar" class="calendar"></div>
+      <p class="hint">僅顯示已核准的借用。點選日期可查看當天各教室、各節次的借用情形。</p>
+    </section>
+
+    <!-- 申請借用 -->
+    <section id="tab-apply" class="tab">
+      <div class="card need-login">請先登入（限 @chc.edu.tw 帳號）後再申請借用。</div>
+      <form id="applyForm" class="card form" hidden>
+        <h2>申請借用教室</h2>
+
+        <label class="field">教室
+          <select id="fRoom" required></select>
+        </label>
+
+        <fieldset class="field">
+          <legend>借用方式</legend>
+          <label class="inline"><input type="radio" name="type" value="once" checked> 只借一次</label>
+          <label class="inline"><input type="radio" name="type" value="weekly"> 每週固定</label>
+          <label class="inline"><input type="radio" name="type" value="monthly"> 每月固定</label>
+        </fieldset>
+
+        <div data-for="once">
+          <label class="field">日期 <input type="date" id="fDate"></label>
+        </div>
+
+        <div data-for="weekly" hidden>
+          <fieldset class="field">
+            <legend>每週星期</legend>
+            <div class="checks" id="fWeekdays"></div>
+          </fieldset>
+        </div>
+
+        <div data-for="monthly" hidden>
+          <fieldset class="field">
+            <legend>每月日期</legend>
+            <div class="checks days" id="fMonthDays"></div>
+          </fieldset>
+        </div>
+
+        <div data-for="weekly monthly" hidden class="row">
+          <label class="field">開始日期 <input type="date" id="fStart"></label>
+          <label class="field">結束日期 <input type="date" id="fEnd"></label>
+        </div>
+
+        <fieldset class="field">
+          <legend>節次</legend>
+          <div class="checks" id="fPeriods"></div>
+        </fieldset>
+
+        <label class="field">用途 / 班級
+          <input type="text" id="fPurpose" required maxlength="100" placeholder="例：三年二班 自然實驗">
+        </label>
+        <label class="field">備註
+          <textarea id="fNote" rows="2" maxlength="300"></textarea>
+        </label>
+
+        <label class="inline manager-only" hidden>
+          <input type="checkbox" id="fAutoApprove"> 直接核准（管理員／主管專用，不寄審核信）
+        </label>
+
+        <div id="applyPreview" class="hint"></div>
+        <div class="actions">
+          <button type="submit" class="btn" id="applySubmit">送出申請</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- 我的申請 -->
+    <section id="tab-mine" class="tab">
+      <div class="card need-login">請先登入以查看您的申請紀錄。</div>
+      <div id="mineList" class="list"></div>
+    </section>
+  </main>
+
+  <dialog id="dayDialog">
+    <div class="dialog-head">
+      <h3 id="dayTitle"></h3>
+      <button class="btn ghost" id="dayClose" aria-label="關閉">✕</button>
+    </div>
+    <div id="dayBody" class="table-wrap"></div>
+  </dialog>
+
+  <div id="toast"></div>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
