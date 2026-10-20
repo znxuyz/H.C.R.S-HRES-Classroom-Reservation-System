@@ -35,7 +35,7 @@
 
     <!-- 申請借用 -->
     <section id="tab-apply" class="tab">
-      <div class="card need-login">請先登入（限 @chc.edu.tw 帳號）後再申請借用。</div>
+      <div class="card need-login">請先登入（限 <span class="domain-text"></span> 帳號）後再申請借用。</div>
       <form id="applyForm" class="card form" hidden>
         <h2>申請借用教室</h2>
 
@@ -78,9 +78,23 @@
           <div class="checks" id="fPeriods"></div>
         </fieldset>
 
-        <label class="field">用途 / 班級
-          <input type="text" id="fPurpose" required maxlength="100" placeholder="例：三年二班 自然實驗">
-        </label>
+        <div class="row">
+          <label class="field">教師姓名
+            <input type="text" id="fTeacher" maxlength="30" placeholder="實際使用教室的教師">
+          </label>
+          <label class="field">班級
+            <input type="text" id="fClass" maxlength="30" placeholder="例：三年二班">
+          </label>
+        </div>
+        <div class="row">
+          <label class="field">課程
+            <input type="text" id="fCourse" maxlength="50" placeholder="例：自然">
+          </label>
+          <label class="field">用途
+            <input type="text" id="fPurpose" maxlength="100" placeholder="例：實驗課、社團、研習">
+          </label>
+        </div>
+        <p class="hint">班級、課程、用途請至少填一項。</p>
         <label class="field">備註
           <textarea id="fNote" rows="2" maxlength="300"></textarea>
         </label>

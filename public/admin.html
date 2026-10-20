@@ -73,7 +73,7 @@
     <!-- 帳號權限 -->
     <section id="tab-roles" class="tab" hidden>
       <form id="roleForm" class="card form row">
-        <label class="field">帳號 Email <input id="roleEmail" type="email" required placeholder="name@chc.edu.tw"></label>
+        <label class="field">帳號 Email <input id="roleEmail" type="email" required placeholder="name@chc.edu.tw 或 name@hres.chc.edu.tw"></label>
         <label class="field">姓名／職稱 <input id="roleName" maxlength="50" placeholder="例：教務主任 王小明"></label>
         <label class="field">身分
           <select id="roleRole">
@@ -84,7 +84,7 @@
         <div class="actions"><button class="btn">新增 / 更新</button></div>
       </form>
       <div class="table-wrap"><table class="data" id="roleTable"></table></div>
-      <p class="hint">未列在此的 @chc.edu.tw 帳號皆為一般教師。申請通知信會寄給所有「主管」；若沒有設定主管則寄給管理員。</p>
+      <p class="hint">未列在此的 <span class="domain-text"></span> 帳號皆為一般教師。申請通知信會寄給所有「主管」；若沒有設定主管則寄給管理員。</p>
     </section>
   </main>
 

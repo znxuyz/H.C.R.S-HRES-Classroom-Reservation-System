@@ -7,11 +7,11 @@
 | 身分 | 可以做的事 |
 | --- | --- |
 | 未登入訪客 | 查看「借用狀況」月曆（只顯示已核准），可依教室篩選、點日期看當天各教室 × 節次表 |
-| 一般教師（任何 @chc.edu.tw 帳號） | 申請借用、查看／取消自己的申請 |
+| 一般教師（任何 @chc.edu.tw 或 @hres.chc.edu.tw 帳號） | 申請借用、查看／取消自己的申請 |
 | 主管 | 以上全部 ＋ 進入管理後台審核（同意／不同意）、取消借用、收到申請通知信 |
 | 管理員 | 以上全部 ＋ 設定教室、節次時間、指定管理員與主管、刪除紀錄 |
 
-- **登入**：Google 登入，只接受 `@chc.edu.tw` 帳號（前端與 Firestore 規則都會檢查）。
+- **登入**：Google 登入，只接受 `@chc.edu.tw` 與 `@hres.chc.edu.tw` 帳號（前端與 Firestore 規則都會檢查）。要增減網域時，需同時修改 `public/js/config.js` 的 `ALLOWED_DOMAINS` 與 `firestore.rules` 的 `signedIn()`。
 - **三種借用方式**
   - 只借一次：指定日期 ＋ 節次
   - 每週固定：選星期幾 ＋ 節次 ＋ 起訖日期（例如整學期）
@@ -33,7 +33,7 @@
 | `rooms/{id}` | `name`, `note`, `active`, `order` |
 | `settings/periods` | `list: [{id, name, start, end}]` 節次設定 |
 | `roles/{email}` | `role: "admin" \| "supervisor"`, `name`（不在此集合者皆為一般教師） |
-| `reservations/{id}` | `roomId`, `roomName`, `type: once/weekly/monthly`, `date`, `weekdays[]`, `monthDays[]`, `startDate`, `endDate`, `periodIds[]`, `purpose`, `note`, `applicantEmail`, `applicantName`, `status: pending/approved/rejected/cancelled`, 審核資訊 |
+| `reservations/{id}` | `roomId`, `roomName`, `type: once/weekly/monthly`, `date`, `weekdays[]`, `monthDays[]`, `startDate`, `endDate`, `periodIds[]`, `teacherName`（使用教師）, `className`（班級）, `course`（課程）, `purpose`（用途）, `note`, `applicantEmail`, `applicantName`, `status: pending/approved/rejected/cancelled`, 審核資訊 |
 | `mail/{id}` | 寄信佇列，由 Trigger Email 擴充功能處理 |
 
 ## 安裝步驟
@@ -47,7 +47,6 @@
 ### 2. 修改設定
 1. `public/js/config.js`：貼上 `firebaseConfig`，並把 `BOOTSTRAP_ADMINS` 改成第一位管理員的信箱。
 2. `firestore.rules`：把 `bootstrapAdmins()` 改成**同一個**信箱。
-3. 複製 `.firebaserc.example` 為 `.firebaserc`，填入專案 ID。
 
 ### 3. 部署
 
@@ -70,6 +69,10 @@
 > `config.js` 裡的 Firebase 設定公開是正常的，安全性由 Firestore 規則把關。
 
 #### 方式 B：Firebase Hosting
+需要在電腦上安裝 Firebase 指令工具。指令工具要知道部署到哪個 Firebase 專案，所以先把
+`.firebaserc.example` 複製一份、檔名改成 `.firebaserc`，再把裡面的 `your-firebase-project-id`
+換成你的專案 ID（Firebase 主控台 → 專案設定 → 一般 → 專案 ID）。
+（使用方式 A 且在主控台貼規則的話，不需要這個檔案。）
 ```bash
 npm install -g firebase-tools
 firebase login

@@ -2,9 +2,9 @@ import {
   db, collection, doc, getDocs, addDoc, setDoc, updateDoc, deleteDoc, query, where, serverTimestamp,
   watchUser, renderUserBox, loadRooms, loadPeriods, setupTabs, toast, esc, SITE_TITLE, ROLE_LABEL,
   TYPE_LABEL, STATUS_LABEL, today, monthRange, occurrences, findConflictDate, periodNames,
-  describeSchedule, sendMail, reservationMailHtml,
+  describeSchedule, sendMail, reservationMailHtml, teacherOf, usageText, DOMAIN_TEXT, isAllowedEmail,
 } from "./common.js";
-import { ALLOWED_DOMAIN, BOOTSTRAP_ADMINS } from "./config.js";
+import { BOOTSTRAP_ADMINS } from "./config.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -38,7 +38,7 @@ async function loadPending() {
         <div class="item-title">${esc(r.roomName)}｜${esc(r.applicantName)} <span class="muted">${esc(r.applicantEmail)}</span></div>
         <div>${TYPE_LABEL[r.type]}｜${esc(describeSchedule(r))}${r.type !== "once" ? `（共 ${n} 天）` : ""}</div>
         <div>節次：${esc(periodNames(r.periodIds, state.periods).join("、"))}</div>
-        <div>用途：${esc(r.purpose)}${r.note ? `｜備註：${esc(r.note)}` : ""}</div>
+        <div>教師：${esc(teacherOf(r))}${usageText(r) ? `｜${esc(usageText(r))}` : ""}${r.note ? `｜備註：${esc(r.note)}` : ""}</div>
         <div class="muted">申請時間：${tsText(r.createdAt)}</div>
       </div>
       <div class="item-actions">
@@ -63,7 +63,7 @@ async function review(r, approve) {
       if (x.id === r.id || x.status !== "approved") continue;
       const ds = findConflictDate(r, x);
       if (ds) {
-        return toast(`無法核准：${ds} ${periodNames(x.periodIds, state.periods).join("、")} 已被 ${x.applicantName} 借用`, true);
+        return toast(`無法核准：${ds} ${periodNames(x.periodIds, state.periods).join("、")} 已被 ${teacherOf(x)} 借用`, true);
       }
     }
     if (!confirm(`同意 ${r.applicantName} 借用 ${r.roomName}？`)) return;
@@ -119,19 +119,20 @@ function filteredAll() {
 
 function renderAll() {
   const list = filteredAll();
-  const head = `<thead><tr><th>教室</th><th>申請人</th><th>方式</th><th>日期</th><th>節次</th><th>用途</th><th>狀態</th><th>申請時間</th><th></th></tr></thead>`;
+  const head = `<thead><tr><th>教室</th><th>申請人</th><th>使用教師</th><th>方式</th><th>日期</th><th>節次</th><th>班級｜課程｜用途</th><th>狀態</th><th>申請時間</th><th></th></tr></thead>`;
   if (!list.length) {
-    $("allTable").innerHTML = head + `<tbody><tr><td colspan="9" class="hint">沒有符合的資料</td></tr></tbody>`;
+    $("allTable").innerHTML = head + `<tbody><tr><td colspan="10" class="hint">沒有符合的資料</td></tr></tbody>`;
     return;
   }
   $("allTable").innerHTML = head + "<tbody>" + list.map((r) => `
     <tr>
       <td>${esc(r.roomName)}</td>
       <td>${esc(r.applicantName)}</td>
+      <td>${esc(teacherOf(r))}</td>
       <td>${TYPE_LABEL[r.type]}</td>
       <td>${esc(describeSchedule(r))}</td>
       <td>${esc(periodNames(r.periodIds, state.periods).join("、"))}</td>
-      <td>${esc(r.purpose)}${r.reviewNote ? `<small>審核意見：${esc(r.reviewNote)}</small>` : ""}</td>
+      <td>${esc(usageText(r))}${r.reviewNote ? `<small>審核意見：${esc(r.reviewNote)}</small>` : ""}</td>
       <td><span class="badge ${r.status}">${STATUS_LABEL[r.status]}</span>${r.reviewedByName ? `<small>${esc(r.reviewedByName)}</small>` : ""}</td>
       <td class="nowrap">${tsText(r.createdAt)}</td>
       <td class="nowrap">
@@ -172,10 +173,10 @@ function renderAll() {
 }
 
 function exportCsv() {
-  const rows = [["教室", "申請人", "Email", "方式", "日期", "節次", "用途", "備註", "狀態", "審核人", "審核意見", "申請時間"]];
+  const rows = [["教室", "申請人", "Email", "使用教師", "班級", "課程", "方式", "日期", "節次", "用途", "備註", "狀態", "審核人", "審核意見", "申請時間"]];
   for (const r of filteredAll()) {
-    rows.push([r.roomName, r.applicantName, r.applicantEmail, TYPE_LABEL[r.type], describeSchedule(r),
-      periodNames(r.periodIds, state.periods).join("、"), r.purpose, r.note || "", STATUS_LABEL[r.status],
+    rows.push([r.roomName, r.applicantName, r.applicantEmail, teacherOf(r), r.className || "", r.course || "", TYPE_LABEL[r.type], describeSchedule(r),
+      periodNames(r.periodIds, state.periods).join("、"), r.purpose || "", r.note || "", STATUS_LABEL[r.status],
       r.reviewedByName || "", r.reviewNote || "", tsText(r.createdAt)]);
   }
   const csv = rows.map((row) => row.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\r\n");
@@ -320,7 +321,7 @@ async function loadRoles() {
 $("roleForm").onsubmit = async (e) => {
   e.preventDefault();
   const email = $("roleEmail").value.trim().toLowerCase();
-  if (!email.endsWith("@" + ALLOWED_DOMAIN)) return toast(`只能設定 @${ALLOWED_DOMAIN} 帳號`, true);
+  if (!isAllowedEmail(email)) return toast(`只能設定 ${DOMAIN_TEXT} 帳號`, true);
   try {
     await setDoc(doc(db, "roles", email), {
       role: $("roleRole").value, name: $("roleName").value.trim(), updatedAt: serverTimestamp(), updatedBy: state.user.email,

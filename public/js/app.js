@@ -2,7 +2,7 @@ import {
   db, collection, doc, getDocs, addDoc, updateDoc, query, where, serverTimestamp,
   watchUser, renderUserBox, loadRooms, loadPeriods, setupTabs, toast, esc, SITE_TITLE,
   WEEKDAY_LABEL, TYPE_LABEL, STATUS_LABEL, pad, today, parseDate, addDays, monthRange,
-  occursOn, occurrences, findConflictDate, periodNames, describeSchedule, roomColor,
+  occursOn, occurrences, findConflictDate, periodNames, describeSchedule, roomColor, teacherOf, usageText,
   sendMail, managerEmails, reservationMailHtml,
 } from "./common.js";
 
@@ -64,7 +64,7 @@ function renderCalendar() {
     if (roomId) {
       chips = list
         .sort((a, b) => periodIndex(a.periodIds) - periodIndex(b.periodIds))
-        .map((r) => `<span class="chip" style="--c:${roomColor(state.rooms, r.roomId)}">${esc(periodNames(r.periodIds, state.periods).join("、"))} ${esc(r.applicantName)}</span>`)
+        .map((r) => `<span class="chip" style="--c:${roomColor(state.rooms, r.roomId)}">${esc(periodNames(r.periodIds, state.periods).join("、"))} ${esc(teacherOf(r))}</span>`)
         .join("");
     } else {
       const byRoom = new Map();
@@ -106,7 +106,7 @@ function openDay(ds) {
     for (const p of state.periods) {
       const r = list.find((x) => x.roomId === room.id && x.periodIds.includes(p.id));
       html += r
-        ? `<td class="busy" style="--c:${roomColor(state.rooms, room.id)}" title="${esc(r.purpose)}">${esc(r.applicantName)}<small>${esc(r.purpose)}</small></td>`
+        ? `<td class="busy" style="--c:${roomColor(state.rooms, room.id)}" title="${esc(usageText(r))}">${esc(teacherOf(r))}<small>${esc(usageText(r))}</small></td>`
         : `<td class="free">—</td>`;
     }
     html += `</tr>`;
@@ -173,14 +173,20 @@ function readForm() {
   if (!room) throw new Error("請選擇教室");
   const periodIds = checkedValues("period");
   if (!periodIds.length) throw new Error("請至少選擇一個節次");
+  const teacherName = $("fTeacher").value.trim();
+  const className = $("fClass").value.trim();
+  const course = $("fCourse").value.trim();
   const purpose = $("fPurpose").value.trim();
-  if (!purpose) throw new Error("請填寫用途 / 班級");
+  if (!className && !course && !purpose) throw new Error("班級、課程、用途請至少填一項");
 
   const r = {
     roomId: room.id,
     roomName: room.name,
     type,
     periodIds,
+    teacherName,
+    className,
+    course,
     purpose,
     note: $("fNote").value.trim(),
   };
@@ -241,11 +247,11 @@ $("applyForm").onsubmit = async (e) => {
     const existing = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
     for (const x of existing.filter((x) => x.status === "approved")) {
       const ds = findConflictDate(r, x);
-      if (ds) throw new Error(`${ds} ${periodNames(x.periodIds, state.periods).join("、")} 已被 ${x.applicantName} 借用`);
+      if (ds) throw new Error(`${ds} ${periodNames(x.periodIds, state.periods).join("、")} 已被 ${teacherOf(x)} 借用`);
     }
     const pendingConflicts = existing.filter((x) => x.status === "pending" && findConflictDate(r, x));
     if (pendingConflicts.length &&
-        !confirm(`已有 ${pendingConflicts.length} 筆待審核的申請與此時段重疊（${pendingConflicts.map((x) => x.applicantName).join("、")}），仍要送出嗎？`)) {
+        !confirm(`已有 ${pendingConflicts.length} 筆待審核的申請與此時段重疊（${pendingConflicts.map((x) => teacherOf(x)).join("、")}），仍要送出嗎？`)) {
       return;
     }
 
@@ -269,7 +275,7 @@ $("applyForm").onsubmit = async (e) => {
       );
     }
     toast(auto ? "已新增並核准" : "申請已送出，等待主管審核");
-    $("fPurpose").value = "";
+    ["fClass", "fCourse", "fPurpose"].forEach((id) => ($(id).value = ""));
     $("fNote").value = "";
     loadMonth();
     loadMine();
@@ -301,7 +307,7 @@ async function loadMine() {
         <div class="item-title">${esc(r.roomName)} <span class="badge ${r.status}">${STATUS_LABEL[r.status]}</span></div>
         <div>${TYPE_LABEL[r.type]}｜${esc(describeSchedule(r))}</div>
         <div>節次：${esc(periodNames(r.periodIds, state.periods).join("、"))}</div>
-        <div class="muted">用途：${esc(r.purpose)}${r.reviewNote ? `｜審核意見：${esc(r.reviewNote)}` : ""}</div>
+        <div class="muted">${esc([teacherOf(r), usageText(r)].filter(Boolean).join("｜"))}${r.reviewNote ? `｜審核意見：${esc(r.reviewNote)}` : ""}</div>
       </div>
       ${["pending", "approved"].includes(r.status) && r.endDate >= today()
         ? `<button class="btn danger ghost" data-cancel="${r.id}">取消申請</button>` : ""}
@@ -338,6 +344,7 @@ async function init() {
     renderUserBox($("userBox"), user);
     $("adminLink").hidden = !user?.isManager;
     $("applyForm").hidden = !user;
+    if (user && !$("fTeacher").value) $("fTeacher").value = user.name;
     document.querySelectorAll(".need-login").forEach((el) => (el.hidden = !!user));
     document.querySelectorAll(".manager-only").forEach((el) => (el.hidden = !user?.isManager));
     loadMine().catch((e) => console.error(e));

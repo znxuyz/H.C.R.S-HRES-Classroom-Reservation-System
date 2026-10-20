@@ -1,6 +1,7 @@
 rules_version = '2';
 
 // 教室借用系統 Firestore 安全性規則
+// 允許 @chc.edu.tw 與 @hres.chc.edu.tw 帳號（見 signedIn()）
 // ⚠ 部署前請把 bootstrapAdmins() 裡的信箱改成學校實際的第一位管理員
 //   （需與 public/js/config.js 的 BOOTSTRAP_ADMINS 一致）
 service cloud.firestore {
@@ -13,7 +14,7 @@ service cloud.firestore {
     function signedIn() {
       return request.auth != null
         && request.auth.token.email_verified == true
-        && request.auth.token.email.lower().matches('.*@chc[.]edu[.]tw$');
+        && request.auth.token.email.lower().matches('.*@(hres[.])?chc[.]edu[.]tw$');
     }
 
     function myEmail() {

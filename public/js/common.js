@@ -6,7 +6,7 @@ import {
   getFirestore, collection, doc, getDoc, getDocs, addDoc, query, where, serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import {
-  firebaseConfig, ALLOWED_DOMAIN, BOOTSTRAP_ADMINS, SITE_TITLE, MAIL_ENABLED, DEFAULT_PERIODS,
+  firebaseConfig, ALLOWED_DOMAINS, BOOTSTRAP_ADMINS, SITE_TITLE, MAIL_ENABLED, DEFAULT_PERIODS,
 } from "./config.js";
 
 export * from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
@@ -20,17 +20,25 @@ export const db = getFirestore(app);
 
 export const ROLE_LABEL = { admin: "管理員", supervisor: "主管", teacher: "教師" };
 
-function isAllowedEmail(email) {
-  return !!email && email.toLowerCase().endsWith("@" + ALLOWED_DOMAIN);
+export const DOMAIN_TEXT = ALLOWED_DOMAINS.map((d) => "@" + d).join(" 或 ");
+
+export function isAllowedEmail(email) {
+  return !!email && ALLOWED_DOMAINS.some((d) => email.toLowerCase().endsWith("@" + d));
 }
+
+// 頁面上標記 class="domain-text" 的地方顯示允許的網域
+document.querySelectorAll(".domain-text").forEach((el) => (el.textContent = DOMAIN_TEXT));
 
 export async function login() {
   const provider = new GoogleAuthProvider();
-  provider.setCustomParameters({ hd: ALLOWED_DOMAIN, prompt: "select_account" });
+  // hd 只能指定單一網域，多個網域時改由登入後檢查
+  provider.setCustomParameters(ALLOWED_DOMAINS.length === 1
+    ? { hd: ALLOWED_DOMAINS[0], prompt: "select_account" }
+    : { prompt: "select_account" });
   const cred = await signInWithPopup(auth, provider);
   if (!isAllowedEmail(cred.user.email)) {
     await signOut(auth);
-    throw new Error(`請使用 @${ALLOWED_DOMAIN} 帳號登入`);
+    throw new Error(`請使用 ${DOMAIN_TEXT} 帳號登入`);
   }
 }
 
@@ -54,7 +62,7 @@ export function watchUser(cb) {
     if (!u) return cb(null);
     if (!isAllowedEmail(u.email)) {
       await signOut(auth);
-      toast(`請使用 @${ALLOWED_DOMAIN} 帳號登入`, true);
+      toast(`請使用 ${DOMAIN_TEXT} 帳號登入`, true);
       return cb(null);
     }
     const email = u.email.toLowerCase();
@@ -72,7 +80,7 @@ export function watchUser(cb) {
 
 export function renderUserBox(el, user) {
   if (!user) {
-    el.innerHTML = `<button class="btn" id="loginBtn">以 @${ALLOWED_DOMAIN} 登入</button>`;
+    el.innerHTML = `<button class="btn" id="loginBtn">以學校帳號登入</button>`;
     el.querySelector("#loginBtn").onclick = () => login().catch((e) => toast(e.message, true));
   } else {
     el.innerHTML = `<span class="who">${esc(user.name)}<small>${ROLE_LABEL[user.role] || ""}</small></span>
@@ -167,6 +175,16 @@ export function findConflictDate(a, b) {
   return null;
 }
 
+// 使用教師（未填時為申請人）
+export function teacherOf(r) {
+  return r.teacherName || r.applicantName;
+}
+
+// 班級｜課程｜用途 合併顯示
+export function usageText(r) {
+  return [r.className, r.course, r.purpose].filter(Boolean).join("｜");
+}
+
 export function periodNames(ids, periods) {
   const order = periods.map((p) => p.id);
   return [...ids]
@@ -212,7 +230,10 @@ export function reservationMailHtml(r, periods, extra = "") {
     <tr><td style="padding:4px 12px 4px 0;color:#666">借用方式</td><td>${TYPE_LABEL[r.type]}</td></tr>
     <tr><td style="padding:4px 12px 4px 0;color:#666">日期</td><td>${esc(describeSchedule(r))}</td></tr>
     <tr><td style="padding:4px 12px 4px 0;color:#666">節次</td><td>${esc(periodNames(r.periodIds, periods).join("、"))}</td></tr>
-    <tr><td style="padding:4px 12px 4px 0;color:#666">用途</td><td>${esc(r.purpose)}</td></tr>
+    ${r.teacherName ? `<tr><td style="padding:4px 12px 4px 0;color:#666">教師</td><td>${esc(r.teacherName)}</td></tr>` : ""}
+    ${r.className ? `<tr><td style="padding:4px 12px 4px 0;color:#666">班級</td><td>${esc(r.className)}</td></tr>` : ""}
+    ${r.course ? `<tr><td style="padding:4px 12px 4px 0;color:#666">課程</td><td>${esc(r.course)}</td></tr>` : ""}
+    ${r.purpose ? `<tr><td style="padding:4px 12px 4px 0;color:#666">用途</td><td>${esc(r.purpose)}</td></tr>` : ""}
     ${r.note ? `<tr><td style="padding:4px 12px 4px 0;color:#666">備註</td><td>${esc(r.note)}</td></tr>` : ""}
   </table>${extra}`;
 }

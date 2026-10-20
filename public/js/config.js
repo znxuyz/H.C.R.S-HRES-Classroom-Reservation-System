@@ -10,8 +10,9 @@ export const firebaseConfig = {
   appId: "1:000000000000:web:0000000000000000",
 };
 
-// 只允許這個網域的 Google 帳號登入
-export const ALLOWED_DOMAIN = "chc.edu.tw";
+// 只允許這些網域的 Google 帳號登入
+// ⚠ 若修改，firestore.rules 裡 signedIn() 的網域判斷也要一起改
+export const ALLOWED_DOMAINS = ["chc.edu.tw", "hres.chc.edu.tw"];
 
 // 第一位（固定）管理員，用來在系統剛建立時登入設定其他管理員與主管
 // ⚠ 必須和 firestore.rules 裡的 bootstrapAdmins() 一致
