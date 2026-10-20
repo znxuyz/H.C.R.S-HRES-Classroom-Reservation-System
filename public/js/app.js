@@ -60,22 +60,26 @@ function renderCalendar() {
     const ds = `${state.year}-${pad(state.month + 1)}-${pad(d)}`;
     const dow = parseDate(ds).getDay();
     const list = reservationsOn(ds, roomId);
-    let chips = "";
-    if (roomId) {
-      chips = list
-        .sort((a, b) => periodIndex(a.periodIds) - periodIndex(b.periodIds))
-        .map((r) => `<span class="chip" style="--c:${roomColor(state.rooms, r.roomId)}">${esc(periodNames(r.periodIds, state.periods).join("、"))} ${esc(teacherOf(r))}</span>`)
-        .join("");
-    } else {
-      const byRoom = new Map();
-      for (const r of list) {
-        if (!byRoom.has(r.roomId)) byRoom.set(r.roomId, { name: r.roomName, ids: new Set() });
-        r.periodIds.forEach((p) => byRoom.get(r.roomId).ids.add(p));
-      }
-      chips = [...byRoom.entries()]
-        .sort((a, b) => roomIndex(a[0]) - roomIndex(b[0]))
-        .map(([rid, v]) => `<span class="chip" style="--c:${roomColor(state.rooms, rid)}">${esc(v.name)}｜${esc(periodNames([...v.ids], state.periods).join("、"))}</span>`)
-        .join("");
+    // 每間有借用的教室一列：教室簡稱＋每個節次一個圓點（實心＝已借）
+    const byRoom = new Map();
+    for (const r of list) {
+      if (!byRoom.has(r.roomId)) byRoom.set(r.roomId, new Map());
+      r.periodIds.forEach((p) => byRoom.get(r.roomId).set(p, r));
+    }
+    let chips = [...byRoom.entries()]
+      .sort((a, b) => roomIndex(a[0]) - roomIndex(b[0]))
+      .map(([rid, booked]) => {
+        const room = state.rooms.find((x) => x.id === rid);
+        const name = room?.name || [...booked.values()][0].roomName;
+        const dots = state.periods.map((p) => {
+          const r = booked.get(p.id);
+          return `<b class="${r ? "on" : ""}" title="${esc(`${name} ${p.name}${r ? ` ${teacherOf(r)}` : " 空堂"}`)}"></b>`;
+        }).join("");
+        return `<span class="drow" style="--c:${roomColor(state.rooms, rid)};--n:${state.periods.length}">
+          <span class="rn">${esc(shortRoomName(name))}</span><span class="dots">${dots}</span></span>`;
+      }).join("");
+    if (roomId && list.length) {
+      chips += `<span class="who">${esc([...new Set(list.map(teacherOf))].join("、"))}</span>`;
     }
     html += `<button class="cal-cell${dow === 0 || dow === 6 ? " weekend" : ""}${ds === t ? " today" : ""}" data-date="${ds}">
       <span class="day-num">${d}</span>${chips}</button>`;
@@ -84,13 +88,21 @@ function renderCalendar() {
   $("calendar").querySelectorAll(".cal-cell[data-date]").forEach((c) => (c.onclick = () => openDay(c.dataset.date)));
 }
 
+// 月曆上用的教室簡稱：去掉「教室」，最多 4 個字
+function shortRoomName(name) {
+  const n = name.replace(/教室$/, "") || name;
+  return [...n].slice(0, 4).join("");
+}
+
+function renderLegend() {
+  $("roomLegend").innerHTML = state.rooms
+    .map((r) => `<span><i style="background:${roomColor(state.rooms, r.id)}"></i>${esc(r.name)}</span>`).join("") +
+    `<span class="muted">每列圓點由左至右：${esc(state.periods.map((p) => p.name).join("、"))}；實心＝已借用</span>`;
+}
+
 function roomIndex(id) {
   const i = state.rooms.findIndex((r) => r.id === id);
   return i < 0 ? 999 : i;
-}
-
-function periodIndex(ids) {
-  return Math.min(...ids.map((id) => state.periods.findIndex((p) => p.id === id)));
 }
 
 function openDay(ds) {
@@ -364,6 +376,7 @@ async function init() {
   [state.rooms, state.periods] = await Promise.all([loadRooms(), loadPeriods()]);
   $("roomFilter").innerHTML = `<option value="">全部教室</option>` +
     state.rooms.map((r) => `<option value="${r.id}">${esc(r.name)}</option>`).join("");
+  renderLegend();
   buildApplyForm();
   updateTypeFields();
   loadMonth();
