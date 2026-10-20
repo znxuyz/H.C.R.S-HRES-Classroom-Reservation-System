@@ -274,7 +274,11 @@ export function setupTabs(nav, onChange) {
     btn.onclick = () => {
       nav.querySelectorAll("button[data-tab]").forEach((b) => b.classList.toggle("active", b === btn));
       document.querySelectorAll(".tab").forEach((t) => t.classList.toggle("active", t.id === "tab-" + btn.dataset.tab));
+      history.replaceState(null, "", "#" + btn.dataset.tab);
       onChange?.(btn.dataset.tab);
     };
   });
+  // 網址帶 #分頁 時（例如從管理後台連回 index.html#apply）直接切到該分頁
+  const initial = nav.querySelector(`button[data-tab="${location.hash.slice(1)}"]`);
+  if (initial) initial.click();
 }

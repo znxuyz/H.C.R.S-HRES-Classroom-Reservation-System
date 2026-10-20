@@ -53,7 +53,28 @@ a { color: var(--primary); }
   text-decoration: none;
 }
 .tabs button:hover, .tabs a:hover { background: var(--bg); color: var(--text); }
-.tabs button.active { background: #e8efff; color: var(--primary); font-weight: 600; }
+.tabs button.active, .tabs a.active { background: #e8efff; color: var(--primary); font-weight: 600; }
+
+/* 管理後台的第二排分頁 */
+.subtabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--line);
+}
+.subtabs button {
+  border: 0;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  background: none;
+  padding: 8px 14px;
+  font: inherit;
+  color: var(--muted);
+  cursor: pointer;
+}
+.subtabs button:hover { color: var(--text); }
+.subtabs button.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 600; }
 .count:not(:empty) {
   display: inline-block;
   min-width: 20px;

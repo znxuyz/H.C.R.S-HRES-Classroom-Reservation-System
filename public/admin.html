@@ -8,18 +8,25 @@
 </head>
 <body>
   <header class="topbar">
-    <div class="brand"><a href="index.html" id="siteTitle">教室借用系統</a> <small>管理後台</small></div>
-    <nav class="tabs" id="tabs" hidden>
+    <div class="brand"><a href="index.html" id="siteTitle">教室借用系統</a></div>
+    <nav class="tabs">
+      <a href="index.html#calendar">借用狀況</a>
+      <a href="index.html#apply">申請借用</a>
+      <a href="index.html#mine">我的申請</a>
+      <a href="admin.html" class="active">管理後台</a>
+    </nav>
+    <div class="user" id="userBox"></div>
+  </header>
+
+  <main>
+    <nav class="subtabs" id="tabs" hidden>
       <button data-tab="pending" class="active">待審核 <span class="count" id="pendingCount"></span></button>
       <button data-tab="all">所有借用</button>
       <button data-tab="rooms" class="admin-only">教室設定</button>
       <button data-tab="periods" class="admin-only">節次設定</button>
       <button data-tab="roles" class="admin-only">帳號權限</button>
     </nav>
-    <div class="user" id="userBox"></div>
-  </header>
 
-  <main>
     <div id="denied" class="card">請以管理員或主管帳號登入。</div>
 
     <!-- 待審核 -->
