@@ -315,3 +315,5 @@ table.data td input:not([type="checkbox"]) { width: 100%; min-width: 90px; }
   font-size: 14px;
 }
 .config-warning code { background: #fde68a; padding: 0 4px; border-radius: 4px; }
+
+.quick-periods { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 8px; font-weight: 400; }

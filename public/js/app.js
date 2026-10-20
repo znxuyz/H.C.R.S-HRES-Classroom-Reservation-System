@@ -165,6 +165,22 @@ function updateTypeFields() {
 }
 document.querySelectorAll('input[name="type"]').forEach((el) => (el.onchange = updateTypeFields));
 
+// 節次快速選擇：上午＝12:00 前開始的節次，下午＝13:00 後開始的節次（午休只算在整天）
+const QUICK_PERIODS = {
+  all: () => true,
+  am: (p) => p.start < "12:00",
+  pm: (p) => p.start >= "13:00",
+  none: () => false,
+};
+document.querySelectorAll("[data-quick]").forEach((btn) => {
+  btn.onclick = () => {
+    const pick = QUICK_PERIODS[btn.dataset.quick];
+    const ids = new Set(state.periods.filter(pick).map((p) => p.id));
+    document.querySelectorAll('input[name="period"]').forEach((el) => (el.checked = ids.has(el.value)));
+    updatePreview();
+  };
+});
+
 const checkedValues = (name) => [...document.querySelectorAll(`input[name="${name}"]:checked`)].map((el) => el.value);
 
 // 讀取表單並檢查，回傳借用資料或丟出錯誤訊息
