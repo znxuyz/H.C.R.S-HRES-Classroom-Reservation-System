@@ -330,7 +330,7 @@ export function toast(msg, isError = false) {
   toastTimer = setTimeout(() => (el.className = ""), 3500);
 }
 
-const ROOM_COLORS = ["#2563eb", "#16a34a", "#d97706", "#db2777", "#7c3aed", "#0891b2", "#dc2626", "#4d7c0f", "#c026d3", "#0f766e"];
+const ROOM_COLORS = ["#3a62d6", "#0f9a72", "#d9822b", "#d1437a", "#7a5bdc", "#0b97ad", "#d8524a", "#5e8a2c", "#b04fc6", "#2f84c7"];
 export function roomColor(rooms, roomId) {
   const i = rooms.findIndex((r) => r.id === roomId);
   return ROOM_COLORS[(i < 0 ? 0 : i) % ROOM_COLORS.length];
