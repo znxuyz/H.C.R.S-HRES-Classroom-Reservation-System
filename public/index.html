@@ -15,6 +15,7 @@
       <button data-tab="mine">我的申請</button>
       <a href="admin.html" id="adminLink" hidden>管理後台</a>
     </nav>
+    <button type="button" class="btn ghost help-btn" id="helpBtn">操作說明</button>
     <div class="user" id="userBox"></div>
   </header>
 
@@ -44,7 +45,7 @@
           <select id="fRoom" required></select>
         </label>
 
-        <fieldset class="field">
+        <fieldset class="field" id="fsType">
           <legend>借用方式</legend>
           <label class="inline"><input type="radio" name="type" value="once" checked> 只借一次</label>
           <label class="inline"><input type="radio" name="type" value="weekly"> 每週固定</label>
@@ -74,7 +75,7 @@
           <label class="field">結束日期 <input type="date" id="fEnd"></label>
         </div>
 
-        <fieldset class="field">
+        <fieldset class="field" id="fsPeriods">
           <legend>節次</legend>
           <div class="quick-periods">
             <span class="muted">快速選擇：</span>
@@ -112,7 +113,7 @@
         </label>
 
         <div id="applyPreview" class="hint"></div>
-        <div class="actions">
+        <div class="actions" id="applyActions">
           <button type="submit" class="btn" id="applySubmit">送出申請</button>
         </div>
       </form>
