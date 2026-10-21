@@ -1,7 +1,7 @@
 import {
-  db, collection, doc, getDocs, addDoc, setDoc, updateDoc, deleteDoc, deleteField, query, where, serverTimestamp,
+  db, collection, doc, getDocs, addDoc, setDoc, updateDoc, deleteDoc, deleteField, query, where, serverTimestamp, onSnapshot,
   watchUser, renderUserBox, loadRooms, loadPeriods, setupTabs, toast, esc, SITE_TITLE, ROLE_LABEL,
-  TYPE_LABEL, STATUS_LABEL, today, monthRange, occurrences, findConflictDate, periodNames,
+  TYPE_LABEL, STATUS_LABEL, monthRange, occurrences, findConflictDate, periodNames,
   describeSchedule, sendMail, reservationMailHtml, teacherOf, usageText, DOMAIN_TEXT, isAllowedEmail,
   WEEKDAY_LABEL, addDays,
 } from "./common.js";
@@ -9,24 +9,29 @@ import { BOOTSTRAP_ADMINS } from "./config.js";
 
 const $ = (id) => document.getElementById(id);
 
-const state = { user: null, rooms: [], periods: [], all: [] };
+const state = { user: null, rooms: [], periods: [], all: [], ready: false };
 
 document.title = `管理後台｜${SITE_TITLE}`;
 $("siteTitle").textContent = SITE_TITLE;
 
 const tsText = (ts) => (ts?.toDate ? ts.toDate().toLocaleString("zh-TW", { hour12: false }) : "");
 
-async function fetchReservations(status) {
-  const base = collection(db, "reservations");
-  const snap = await getDocs(status ? query(base, where("status", "==", status)) : base);
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() }))
-    .sort((a, b) => (b.createdAt?.seconds ?? 0) - (a.createdAt?.seconds ?? 0));
+// 即時同步所有借用資料：有人申請、核准、修改時畫面會自動更新，不必重新整理
+let unsubscribe = null;
+function watchReservations() {
+  unsubscribe?.();
+  unsubscribe = onSnapshot(collection(db, "reservations"), (snap) => {
+    state.all = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => (b.createdAt?.seconds ?? 0) - (a.createdAt?.seconds ?? 0));
+    loadPending();
+    renderAll();
+  }, (e) => toast("讀取借用資料失敗：" + e.message, true));
 }
 
 // ===================== 待審核 =====================
 
-async function loadPending() {
-  const list = await fetchReservations("pending");
+function loadPending() {
+  const list = state.all.filter((r) => r.status === "pending");
   $("pendingCount").textContent = list.length || "";
   if (!list.length) {
     $("pendingList").innerHTML = `<div class="card hint">目前沒有待審核的申請。</div>`;
@@ -100,12 +105,12 @@ async function review(r, approve) {
 
 // ===================== 所有借用 =====================
 
-async function loadAll() {
-  state.all = await fetchReservations($("aStatus").value);
+function loadAll() {
   renderAll();
 }
 
 function filteredAll() {
+  const status = $("aStatus").value;
   const roomId = $("aRoom").value;
   const ym = $("aMonth").value;
   let range = null;
@@ -114,6 +119,7 @@ function filteredAll() {
     range = monthRange(y, m - 1);
   }
   return state.all.filter((r) =>
+    (!status || r.status === status) &&
     (!roomId || r.roomId === roomId) &&
     (!range || occurrences(r, range.start, range.end).length > 0));
 }
@@ -313,7 +319,7 @@ function exportCsv() {
   URL.revokeObjectURL(a.href);
 }
 
-$("aStatus").onchange = loadAll;
+$("aStatus").onchange = renderAll;
 $("aRoom").onchange = renderAll;
 $("aMonth").onchange = renderAll;
 $("aClearMonth").onclick = () => {
@@ -465,6 +471,8 @@ $("roleForm").onsubmit = async (e) => {
 
 setupTabs($("tabs"), (tab) => {
   document.querySelectorAll(".tab").forEach((t) => (t.hidden = t.id !== "tab-" + tab));
+  // 教室、節次設定讀完之前不顯示資料，避免節次顯示成代號、篩選沒套用
+  if (!state.ready) return;
   if (tab === "pending") loadPending();
   if (tab === "all") loadAll();
   if (tab === "rooms") loadRoomsTab();
@@ -475,6 +483,9 @@ setupTabs($("tabs"), (tab) => {
 renderUserBox($("userBox"), null);
 watchUser(async (user) => {
   state.user = user;
+  state.ready = false;
+  unsubscribe?.();
+  unsubscribe = null;
   renderUserBox($("userBox"), user);
   const ok = !!user?.isManager;
   $("denied").hidden = ok;
@@ -489,8 +500,10 @@ watchUser(async (user) => {
     periodDraft = state.periods.map((p) => ({ ...p }));
     $("aRoom").innerHTML = `<option value="">全部教室</option>` +
       state.rooms.map((r) => `<option value="${r.id}">${esc(r.name)}</option>`).join("");
-    $("aMonth").value = today().slice(0, 7);
-    loadPending();
+    state.ready = true;
+    watchReservations();
+    // 重新顯示目前所在的分頁（網址帶 #all 等分頁時也會正確載入）
+    document.querySelector("#tabs button.active")?.click();
   } catch (e) {
     console.error(e);
     toast(e.message, true);
