@@ -95,6 +95,59 @@
     </section>
   </main>
 
+  <!-- 管理員編輯借用 -->
+  <dialog id="editDialog">
+    <form id="editForm" class="form">
+      <div class="dialog-head">
+        <h3>編輯借用</h3>
+        <button type="button" class="btn ghost" id="editClose" aria-label="關閉">✕</button>
+      </div>
+      <div class="dialog-body">
+        <p class="hint" id="editInfo"></p>
+        <label class="field">教室 <select id="eRoom"></select></label>
+
+        <fieldset class="field">
+          <legend>借用方式</legend>
+          <label class="inline"><input type="radio" name="eType" value="once"> 只借一次</label>
+          <label class="inline"><input type="radio" name="eType" value="weekly"> 每週固定</label>
+          <label class="inline"><input type="radio" name="eType" value="monthly"> 每月固定</label>
+        </fieldset>
+
+        <div data-efor="once"><label class="field">日期 <input type="date" id="eDate"></label></div>
+        <div data-efor="weekly">
+          <fieldset class="field"><legend>每週星期</legend><div class="checks" id="eWeekdays"></div></fieldset>
+        </div>
+        <div data-efor="monthly">
+          <fieldset class="field"><legend>每月日期</legend><div class="checks days" id="eMonthDays"></div></fieldset>
+        </div>
+        <div data-efor="weekly monthly" class="row">
+          <label class="field">開始日期 <input type="date" id="eStart"></label>
+          <label class="field">結束日期 <input type="date" id="eEnd"></label>
+        </div>
+
+        <fieldset class="field">
+          <legend>節次</legend>
+          <div class="checks" id="ePeriods"></div>
+        </fieldset>
+
+        <div class="row">
+          <label class="field">教師姓名 <input id="eTeacher" maxlength="30"></label>
+          <label class="field">班級 <input id="eClass" maxlength="30"></label>
+        </div>
+        <div class="row">
+          <label class="field">課程 <input id="eCourse" maxlength="50"></label>
+          <label class="field">用途 <input id="ePurpose" maxlength="100"></label>
+        </div>
+        <label class="field">備註 <textarea id="eNote" rows="2" maxlength="300"></textarea></label>
+        <label class="inline"><input type="checkbox" id="eNotify" checked> 寄信通知申請人</label>
+        <div class="actions" style="margin-top:14px">
+          <button type="submit" class="btn" id="eSave">儲存修改</button>
+          <button type="button" class="btn ghost" id="eCancel">取消</button>
+        </div>
+      </div>
+    </form>
+  </dialog>
+
   <div id="toast"></div>
   <script type="module" src="js/admin.js"></script>
 </body>

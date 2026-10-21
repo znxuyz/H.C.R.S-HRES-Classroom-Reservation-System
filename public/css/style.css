@@ -389,3 +389,8 @@ table.data td input:not([type="checkbox"]) { width: 100%; min-width: 90px; }
   .tour-offer { right: 12px; bottom: 12px; }
   .help-btn { padding: 5px 10px; font-size: 14px; }
 }
+
+/* 管理員編輯借用 */
+#editDialog { width: min(760px, 96vw); }
+#editDialog .dialog-body { padding: 14px 18px 4px; }
+#editDialog .dialog-head { position: sticky; top: 0; z-index: 1; background: #fff; }

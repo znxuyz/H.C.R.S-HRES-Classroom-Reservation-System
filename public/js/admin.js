@@ -1,8 +1,9 @@
 import {
-  db, collection, doc, getDocs, addDoc, setDoc, updateDoc, deleteDoc, query, where, serverTimestamp,
+  db, collection, doc, getDocs, addDoc, setDoc, updateDoc, deleteDoc, deleteField, query, where, serverTimestamp,
   watchUser, renderUserBox, loadRooms, loadPeriods, setupTabs, toast, esc, SITE_TITLE, ROLE_LABEL,
   TYPE_LABEL, STATUS_LABEL, today, monthRange, occurrences, findConflictDate, periodNames,
   describeSchedule, sendMail, reservationMailHtml, teacherOf, usageText, DOMAIN_TEXT, isAllowedEmail,
+  WEEKDAY_LABEL, addDays,
 } from "./common.js";
 import { BOOTSTRAP_ADMINS } from "./config.js";
 
@@ -133,9 +134,10 @@ function renderAll() {
       <td>${esc(describeSchedule(r))}</td>
       <td>${esc(periodNames(r.periodIds, state.periods).join("、"))}</td>
       <td>${esc(usageText(r))}${r.reviewNote ? `<small>審核意見：${esc(r.reviewNote)}</small>` : ""}</td>
-      <td><span class="badge ${r.status}">${STATUS_LABEL[r.status]}</span>${r.reviewedByName ? `<small>${esc(r.reviewedByName)}</small>` : ""}</td>
+      <td><span class="badge ${r.status}">${STATUS_LABEL[r.status]}</span>${r.reviewedByName ? `<small>${esc(r.reviewedByName)}</small>` : ""}${r.editedByName ? `<small>已由 ${esc(r.editedByName)} 修改</small>` : ""}</td>
       <td class="nowrap">${tsText(r.createdAt)}</td>
       <td class="nowrap">
+        ${state.user.isAdmin && ["pending", "approved"].includes(r.status) ? `<button class="btn small ghost" data-edit="${r.id}">編輯</button>` : ""}
         ${["pending", "approved"].includes(r.status) ? `<button class="btn small ghost" data-cancel="${r.id}">取消</button>` : ""}
         ${state.user.isAdmin ? `<button class="btn small danger ghost" data-del="${r.id}">刪除</button>` : ""}
       </td>
@@ -159,6 +161,7 @@ function renderAll() {
       toast(e.message, true);
     }
   }));
+  $("allTable").querySelectorAll("[data-edit]").forEach((b) => (b.onclick = () => openEdit(state.all.find((x) => x.id === b.dataset.edit))));
   $("allTable").querySelectorAll("[data-del]").forEach((b) => (b.onclick = async () => {
     if (!confirm("確定永久刪除這筆紀錄？（建議改用「取消」保留紀錄）")) return;
     try {
@@ -171,6 +174,129 @@ function renderAll() {
     }
   }));
 }
+
+// ===================== 編輯借用（管理員） =====================
+
+let editing = null;
+const eChecked = (name) => [...document.querySelectorAll(`#editForm input[name="${name}"]:checked`)].map((el) => el.value);
+const eType = () => document.querySelector('#editForm input[name="eType"]:checked')?.value;
+
+function updateEditType() {
+  document.querySelectorAll("#editForm [data-efor]").forEach((el) => (el.hidden = !el.dataset.efor.split(" ").includes(eType())));
+}
+document.querySelectorAll('#editForm input[name="eType"]').forEach((el) => (el.onchange = updateEditType));
+
+function openEdit(r) {
+  editing = r;
+  const checks = (name, items, selected) => items
+    .map(([v, label]) => `<label class="check"><input type="checkbox" name="${name}" value="${v}" ${selected.includes(v) ? "checked" : ""}> ${label}</label>`).join("");
+
+  $("editInfo").textContent = `申請人：${r.applicantName}（${r.applicantEmail}）｜狀態：${STATUS_LABEL[r.status]}`;
+  // 教室已停用或刪除時仍保留原本的選項
+  const rooms = state.rooms.some((x) => x.id === r.roomId) ? state.rooms : [...state.rooms, { id: r.roomId, name: r.roomName }];
+  $("eRoom").innerHTML = rooms.map((x) => `<option value="${x.id}" ${x.id === r.roomId ? "selected" : ""}>${esc(x.name)}${x.active === false ? "（已停用）" : ""}</option>`).join("");
+  document.querySelector(`#editForm input[name="eType"][value="${r.type}"]`).checked = true;
+  $("eDate").value = r.date || r.startDate;
+  $("eStart").value = r.startDate;
+  $("eEnd").value = r.endDate;
+  $("eWeekdays").innerHTML = checks("eWeekday", [1, 2, 3, 4, 5, 6, 0].map((d) => [String(d), "週" + WEEKDAY_LABEL[d]]), (r.weekdays || []).map(String));
+  $("eMonthDays").innerHTML = checks("eMonthDay", Array.from({ length: 31 }, (_, i) => [String(i + 1), String(i + 1)]), (r.monthDays || []).map(String));
+  // 已被刪除的節次也列出來，避免儲存時默默遺失
+  const periods = [...state.periods, ...r.periodIds.filter((id) => !state.periods.some((p) => p.id === id)).map((id) => ({ id, name: id }))];
+  $("ePeriods").innerHTML = checks("ePeriod", periods.map((p) => [p.id, esc(p.name)]), r.periodIds);
+  $("eTeacher").value = r.teacherName || "";
+  $("eClass").value = r.className || "";
+  $("eCourse").value = r.course || "";
+  $("ePurpose").value = r.purpose || "";
+  $("eNote").value = r.note || "";
+  $("eNotify").checked = true;
+  updateEditType();
+  $("editDialog").showModal();
+}
+
+function readEdit() {
+  const type = eType();
+  const roomId = $("eRoom").value;
+  const roomName = $("eRoom").selectedOptions[0].textContent.replace(/（已停用）$/, "");
+  const periodIds = eChecked("ePeriod");
+  if (!periodIds.length) throw new Error("請至少選擇一個節次");
+  const data = {
+    roomId, roomName, type, periodIds,
+    teacherName: $("eTeacher").value.trim(),
+    className: $("eClass").value.trim(),
+    course: $("eCourse").value.trim(),
+    purpose: $("ePurpose").value.trim(),
+    note: $("eNote").value.trim(),
+  };
+  if (type === "once") {
+    if (!$("eDate").value) throw new Error("請選擇日期");
+    Object.assign(data, { date: $("eDate").value, startDate: $("eDate").value, endDate: $("eDate").value });
+  } else {
+    const startDate = $("eStart").value;
+    const endDate = $("eEnd").value;
+    if (!startDate || !endDate) throw new Error("請設定開始與結束日期");
+    if (endDate < startDate) throw new Error("結束日期不能早於開始日期");
+    if (endDate > addDays(startDate, 366)) throw new Error("固定借用期間最長一年");
+    Object.assign(data, { startDate, endDate });
+    if (type === "weekly") {
+      data.weekdays = eChecked("eWeekday").map(Number);
+      if (!data.weekdays.length) throw new Error("請至少選擇一個星期");
+    } else {
+      data.monthDays = eChecked("eMonthDay").map(Number);
+      if (!data.monthDays.length) throw new Error("請至少選擇一個日期");
+    }
+    if (!occurrences(data).length) throw new Error("此設定在期間內沒有任何借用日期");
+  }
+  return data;
+}
+
+$("editForm").onsubmit = async (e) => {
+  e.preventDefault();
+  const r = editing;
+  let data;
+  try {
+    data = readEdit();
+  } catch (err) {
+    return toast(err.message, true);
+  }
+  $("eSave").disabled = true;
+  try {
+    // 與同教室其他已核准的借用比對衝突（排除自己）
+    const snap = await getDocs(query(collection(db, "reservations"), where("roomId", "==", data.roomId)));
+    for (const d of snap.docs) {
+      const x = { id: d.id, ...d.data() };
+      if (x.id === r.id || x.status !== "approved") continue;
+      const ds = findConflictDate(data, x);
+      if (ds) throw new Error(`${ds} ${periodNames(x.periodIds, state.periods).join("、")} 已被 ${teacherOf(x)} 借用`);
+    }
+    // 換借用方式時，清掉用不到的舊欄位
+    const update = {
+      ...data,
+      date: data.type === "once" ? data.date : deleteField(),
+      weekdays: data.type === "weekly" ? data.weekdays : deleteField(),
+      monthDays: data.type === "monthly" ? data.monthDays : deleteField(),
+      editedBy: state.user.email,
+      editedByName: state.user.name,
+      editedAt: serverTimestamp(),
+    };
+    await updateDoc(doc(db, "reservations", r.id), update);
+    if ($("eNotify").checked) {
+      const after = { ...r, ...data };
+      sendMail([r.applicantEmail], `[教室借用] 您的 ${after.roomName} 借用內容已修改`,
+        `<p>${esc(r.applicantName)} 老師您好，您的借用已由 ${esc(state.user.name)} 修改，修改後內容如下：</p>
+         ${reservationMailHtml(after, state.periods)}`);
+    }
+    $("editDialog").close();
+    toast("已儲存修改");
+    loadAll();
+    loadPending();
+  } catch (err) {
+    toast(err.message, true);
+  } finally {
+    $("eSave").disabled = false;
+  }
+};
+$("editClose").onclick = $("eCancel").onclick = () => $("editDialog").close();
 
 function exportCsv() {
   const rows = [["教室", "申請人", "Email", "使用教師", "班級", "課程", "方式", "日期", "節次", "用途", "備註", "狀態", "審核人", "審核意見", "申請時間"]];
