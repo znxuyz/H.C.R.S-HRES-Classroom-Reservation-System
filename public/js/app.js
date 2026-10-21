@@ -89,10 +89,10 @@ function renderCalendar() {
   $("calendar").querySelectorAll(".cal-cell[data-date]").forEach((c) => (c.onclick = () => openDay(c.dataset.date)));
 }
 
-// 月曆上用的教室簡稱：去掉「教室」，最多 4 個字
+// 月曆上用的教室簡稱：去掉「教室」，最多 2 個字
 function shortRoomName(name) {
   const n = name.replace(/教室$/, "") || name;
-  return [...n].slice(0, 4).join("");
+  return [...n].slice(0, 2).join("");
 }
 
 function renderLegend() {

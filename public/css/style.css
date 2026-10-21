@@ -303,7 +303,7 @@ table.data td input:not([type="checkbox"]) { width: 100%; min-width: 90px; }
 .legend { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; margin: -4px 0 10px; font-size: 13px; }
 .legend span { display: inline-flex; align-items: center; gap: 5px; }
 .legend i { width: 11px; height: 11px; border-radius: 50%; }
-.drow { display: grid; grid-template-columns: 3.4em 1fr; align-items: center; column-gap: 4px; font-size: 12px; line-height: 1.6; }
+.drow { display: grid; grid-template-columns: 2.4em 1fr; align-items: center; column-gap: 4px; font-size: 12px; line-height: 1.6; }
 .drow .rn { color: var(--c); font-weight: 700; white-space: nowrap; overflow: hidden; }
 .drow .dots { display: grid; grid-template-columns: repeat(var(--n), 1fr); justify-items: center; }
 .drow b { width: min(11px, 100%); aspect-ratio: 1; border-radius: 50%; border: 1.5px solid var(--c); opacity: .35; box-sizing: border-box; }
