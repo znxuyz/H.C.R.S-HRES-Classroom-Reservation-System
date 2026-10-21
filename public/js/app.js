@@ -295,13 +295,16 @@ $("applyForm").onsubmit = async (e) => {
     await addDoc(collection(db, "reservations"), r);
 
     if (!auto) {
+      // 申請已存好；通知信寄送失敗不影響申請結果
       const adminUrl = new URL("admin.html", location.href).href;
-      sendMail(
-        await managerEmails(),
-        `[教室借用申請] ${r.applicantName} 申請借用 ${r.roomName}`,
-        `<p>有一筆新的教室借用申請等待審核：</p>${reservationMailHtml(r, state.periods)}
-         <p><a href="${adminUrl}">前往管理後台審核</a></p>`,
-      );
+      managerEmails()
+        .then((to) => sendMail(
+          to,
+          `[教室借用申請] ${r.applicantName} 申請借用 ${r.roomName}`,
+          `<p>有一筆新的教室借用申請等待審核：</p>${reservationMailHtml(r, state.periods)}
+           <p><a href="${adminUrl}">前往管理後台審核</a></p>`,
+        ))
+        .catch((e) => console.warn("通知主管失敗", e));
     }
     toast(auto ? "已新增並核准" : "申請已送出，等待主管審核");
     ["fClass", "fCourse", "fPurpose"].forEach((id) => ($(id).value = ""));
@@ -398,6 +401,10 @@ $("helpBtn").onclick = () => startTour(TOUR_STEPS, { onEnd: () => showTab("calen
 
 setupTabs($("tabs"));
 
+// 教室、節次設定讀完後才顯示「我的申請」，避免節次顯示成代號
+let settingsLoaded;
+const settingsReady = new Promise((resolve) => (settingsLoaded = resolve));
+
 // 先顯示登入按鈕並監聽登入狀態，不受資料讀取成敗影響
 renderUserBox($("userBox"), null);
 watchUser((user) => {
@@ -408,11 +415,12 @@ watchUser((user) => {
   if (user && !$("fTeacher").value) $("fTeacher").value = user.name;
   document.querySelectorAll(".need-login").forEach((el) => (el.hidden = !!user));
   document.querySelectorAll(".manager-only").forEach((el) => (el.hidden = !user?.isManager));
-  loadMine().catch((e) => console.error(e));
+  settingsReady.then(loadMine).catch((e) => console.error(e));
 });
 
 async function init() {
   [state.rooms, state.periods] = await Promise.all([loadRooms(), loadPeriods()]);
+  settingsLoaded();
   $("roomFilter").innerHTML = `<option value="">全部教室</option>` +
     state.rooms.map((r) => `<option value="${r.id}">${esc(r.name)}</option>`).join("");
   renderLegend();
