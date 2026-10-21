@@ -12,6 +12,20 @@ import {
 export * from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 export { SITE_TITLE };
 
+// 註冊 sw.js：每次載入都向伺服器確認檔案是否有更新，不必再手動強制重新整理。
+// 第一次安裝時，頁面可能是用舊的暫存檔案開的，所以自動重新整理一次換成最新版。
+if ("serviceWorker" in navigator) {
+  const firstInstall = !navigator.serviceWorker.controller;
+  let reloaded = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (firstInstall && !reloaded) {
+      reloaded = true;
+      location.reload();
+    }
+  });
+  navigator.serviceWorker.register("sw.js").catch((e) => console.warn("sw 註冊失敗", e));
+}
+
 // config.js 尚未填入 Firebase 設定時，在頁面最上方顯示提醒
 export const CONFIG_MISSING = !firebaseConfig.apiKey || firebaseConfig.apiKey.startsWith("YOUR_");
 if (CONFIG_MISSING) {
