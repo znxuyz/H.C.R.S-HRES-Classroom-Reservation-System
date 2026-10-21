@@ -362,32 +362,9 @@ table.data td input:not([type="checkbox"]) { width: 100%; min-width: 90px; }
 .tour-step { font-size: 12px; color: var(--muted); }
 .tour-title { margin: 2px 0 6px; font-size: 17px; }
 .tour-text { font-size: 15px; line-height: 1.7; }
-.tour-dots { display: none; }
 .tour-actions { display: flex; align-items: center; gap: 8px; margin-top: 14px; }
 .tour-skip { border: 0; background: none; color: var(--muted); font: inherit; font-size: 14px; cursor: pointer; padding: 4px 0; text-decoration: underline; }
 
-/* 樣式二：藍底說明卡 */
-[data-tour-theme="blue"] .tour-pop { background: var(--primary); color: #fff; }
-[data-tour-theme="blue"] .tour-step, [data-tour-theme="blue"] .tour-skip { color: #dbe6ff; }
-[data-tour-theme="blue"] .tour-pop .btn { background: #fff; color: var(--primary); border-color: #fff; }
-[data-tour-theme="blue"] .tour-pop .btn.ghost { background: transparent; color: #fff; border-color: #ffffff80; }
-[data-tour-theme="blue"] .tour-spot { outline-color: #fff; }
-
-/* 樣式三：對話泡泡＋進度點 */
-[data-tour-theme="bubble"] .tour-step { display: none; }
-[data-tour-theme="bubble"] .tour-dots { display: flex; gap: 6px; margin-top: 12px; }
-[data-tour-theme="bubble"] .tour-dots i { width: 8px; height: 8px; border-radius: 50%; background: var(--line); }
-[data-tour-theme="bubble"] .tour-dots i.on { width: 20px; border-radius: 4px; background: var(--primary); }
-[data-tour-theme="bubble"] .tour-pop { border-radius: 16px; }
-[data-tour-theme="bubble"] .tour-pop::before {
-  content: "";
-  position: absolute;
-  left: calc(var(--ax, 50%) - 9px);
-  border: 9px solid transparent;
-}
-[data-tour-theme="bubble"] .tour-pop.place-below::before { top: -18px; border-bottom-color: #fff; }
-[data-tour-theme="bubble"] .tour-pop.place-above::before { bottom: -18px; border-top-color: #fff; }
-[data-tour-theme="bubble"] .tour-spot { outline: 0; border-radius: 14px; }
 
 /* 右下角「需要導覽嗎？」 */
 .tour-offer {
@@ -406,11 +383,6 @@ table.data td input:not([type="checkbox"]) { width: 100%; min-width: 90px; }
 .tour-offer p { margin: 6px 0 0; color: var(--muted); font-size: 14px; }
 .tour-offer-title { font-weight: 700; font-size: 16px; }
 .tour-offer-close { position: absolute; top: 8px; right: 10px; border: 0; background: none; color: var(--muted); font-size: 16px; cursor: pointer; }
-[data-tour-theme="blue"] .tour-offer { background: var(--primary); color: #fff; border-color: var(--primary); }
-[data-tour-theme="blue"] .tour-offer p, [data-tour-theme="blue"] .tour-offer .tour-skip, [data-tour-theme="blue"] .tour-offer-close { color: #dbe6ff; }
-[data-tour-theme="blue"] .tour-offer .btn { background: #fff; color: var(--primary); border-color: #fff; }
-[data-tour-theme="blue"] .tour-offer .btn.ghost { background: transparent; color: #fff; border-color: #ffffff80; }
-[data-tour-theme="bubble"] .tour-offer { border-radius: 18px 18px 4px 18px; }
 @keyframes tour-in { from { opacity: 0; transform: translateY(16px); } }
 
 @media (max-width: 720px) {

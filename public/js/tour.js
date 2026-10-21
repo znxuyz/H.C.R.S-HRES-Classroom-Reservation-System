@@ -46,7 +46,6 @@ export function startTour(allSteps, { onEnd } = {}) {
       <div class="tour-step"></div>
       <h3 class="tour-title"></h3>
       <div class="tour-text"></div>
-      <div class="tour-dots"></div>
       <div class="tour-actions">
         <button type="button" class="tour-skip">略過導覽</button>
         <span class="spacer"></span>
@@ -96,7 +95,6 @@ export function startTour(allSteps, { onEnd } = {}) {
   function render(step) {
     const pos = index;
     root.querySelector(".tour-step").textContent = `第 ${pos + 1} / ${steps.length} 步`;
-    root.querySelector(".tour-dots").innerHTML = steps.map((_, k) => `<i class="${k === pos ? "on" : ""}"></i>`).join("");
     root.querySelector(".tour-title").textContent = step.title;
     root.querySelector(".tour-text").innerHTML = typeof step.text === "function" ? step.text() : step.text;
     root.querySelector(".tour-prev").disabled = pos === 0;
@@ -183,7 +181,7 @@ export function offerTour(steps, { delay = 800, onEnd } = {}) {
     box.innerHTML = `
       <button type="button" class="tour-offer-close" aria-label="關閉">✕</button>
       <div class="tour-offer-title">👋 第一次使用嗎？</div>
-      <p>花 1 分鐘，帶您看看怎麼查詢教室借用狀況、怎麼申請借用。</p>
+      <p>5 個步驟，30 秒看懂怎麼借教室。</p>
       <div class="tour-actions">
         <button type="button" class="tour-skip" data-act="never">不用了</button>
         <span class="spacer"></span>

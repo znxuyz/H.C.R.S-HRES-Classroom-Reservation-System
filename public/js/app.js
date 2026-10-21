@@ -360,79 +360,37 @@ async function loadMine() {
 
 const showTab = (name) => document.querySelector(`#tabs button[data-tab="${name}"]`)?.click();
 
+// 給第一次使用的老師：5 步、每步一兩句話
 const TOUR_STEPS = [
   {
-    title: "歡迎使用教室借用系統",
-    text: "接下來用幾個步驟，帶您認識：<b>查看借用狀況</b>、<b>申請借用</b>、<b>查詢審核結果</b>。<br>隨時可以按「略過導覽」離開，之後也能點右上角「操作說明」再看一次。",
-    before: () => showTab("calendar"),
-  },
-  {
-    target: "#tabs",
-    title: "功能選單",
-    text: "<b>借用狀況</b>：看各教室哪幾節被借走（不用登入）<br><b>申請借用</b>：填單借教室<br><b>我的申請</b>：查看審核結果、取消申請",
-  },
-  {
     target: "#userBox",
-    title: "用學校帳號登入",
+    title: "1. 登入",
+    before: () => showTab("calendar"),
     text: () => (state.user
-      ? "這裡顯示您目前登入的帳號，用完可以按「登出」。<br>下次請一樣用 <b>Chrome 或 Safari</b> 開啟本網站，LINE 內建的瀏覽器無法登入。"
-      : "申請借用前，請先按這裡用學校 Google 帳號登入（@chc.edu.tw 或 @hres.chc.edu.tw）。<br>請用 <b>Chrome 或 Safari</b> 開啟本網站，LINE 內建的瀏覽器無法登入。"),
-  },
-  {
-    target: "#tab-calendar .toolbar",
-    title: "切換月份與教室",
-    text: "按 ‹ › 切換月份，「本月」回到這個月。<br>右邊的選單可以只看某一間教室。",
+      ? "您已登入。請記得用 <b>Chrome 或 Safari</b> 開啟本網站。"
+      : "先用學校 Google 帳號登入。<br>請用 <b>Chrome 或 Safari</b> 開啟，LINE 裡面無法登入。"),
   },
   {
     target: "#roomLegend",
-    title: "看懂月曆上的圓點",
-    text: "每種顏色代表一間教室。<br>每列圓點由左到右是<b>晨光、第1節……第7節</b>，<b>實心</b>表示那一節已被借用，空心表示可以借。",
+    title: "2. 看懂圓點",
+    text: "顏色＝教室，一排圓點＝晨光到第7節。<br><b>實心</b>＝已被借走。",
   },
   {
     target: "#calendar",
-    title: "點日期看詳細",
-    text: "點任何一天，會跳出當天<b>每間教室、每一節</b>是哪位老師借用。",
+    title: "3. 點日期看詳細",
+    text: "點任一天，就能看到誰借了哪間、哪一節。",
   },
   {
-    target: "#tab-apply .need-login",
-    title: "申請借用",
-    text: "請先登入，登入後這裡會出現申請表。",
-    before: () => showTab("apply"),
-    when: () => !state.user,
-  },
-  {
-    target: "#fsType",
-    title: "1. 選教室與借用方式",
-    when: () => !!state.user,
-    text: "先在上方選教室，再選借用方式：<br><b>只借一次</b>：選一天<br><b>每週固定</b>：例如整學期每週三第2節<br><b>每月固定</b>：例如每月 5 號",
-    before: () => showTab("apply"),
-  },
-  {
-    target: "#fsPeriods",
-    title: "2. 選節次",
-    when: () => !!state.user,
-    text: "可以一節一節勾選，也可以用「<b>整天／上午／下午</b>」一次選好。<br>教師姓名、班級、課程、用途都是選填。",
-  },
-  {
-    target: "#applyActions",
-    title: "3. 送出申請",
-    when: () => !!state.user,
-    text: "送出後會通知主管審核。<br><b>主管同意後</b>，才會出現在「借用狀況」月曆上。",
+    target: '#tabs button[data-tab="apply"]',
+    title: "4. 申請借用",
+    text: "選教室、日期、節次，按送出即可。",
   },
   {
     target: '#tabs button[data-tab="mine"]',
-    title: "查看審核結果",
-    text: "在「我的申請」可以看到每筆申請是<b>待審核、已核准或未核准</b>，也可以取消不需要的借用。",
-    before: () => showTab("calendar"),
-  },
-  {
-    title: "導覽完成 🎉",
-    text: "之後如果忘記怎麼操作，隨時點右上角的「<b>操作說明</b>」再看一次。",
+    title: "5. 查看結果",
+    text: "主管同意後才算借到，結果在這裡看。<br>忘記怎麼用，按右上「操作說明」。",
   },
 ];
-
-// 樣板預覽用：網址加 ?tour=blue 或 ?tour=bubble 可切換說明卡樣式
-document.documentElement.dataset.tourTheme = new URLSearchParams(location.search).get("tour") || "light";
 
 $("helpBtn").onclick = () => startTour(TOUR_STEPS, { onEnd: () => showTab("calendar") });
 
