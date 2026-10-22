@@ -391,7 +391,7 @@ const TOUR_STEPS = [
   {
     target: '#tabs button[data-tab="mine"]',
     title: "5. 查看結果",
-    text: "主管同意後才算借到，結果在這裡看。<br>忘記怎麼用，按右上「操作說明」。",
+    text: "主管同意後才算借到，結果在這裡看。<br>忘記怎麼用，按上方「操作說明」。",
   },
 ];
 
@@ -429,7 +429,9 @@ async function init() {
   buildApplyForm();
   updateTypeFields();
   await loadMonth();
-  offerTour(TOUR_STEPS, { onEnd: () => showTab("calendar") });
+  // 從管理後台按「操作說明」過來時（網址 #tour）直接開始導覽
+  if (location.hash === "#tour") startTour(TOUR_STEPS, { onEnd: () => showTab("calendar") });
+  else offerTour(TOUR_STEPS, { onEnd: () => showTab("calendar") });
 }
 
 init().catch((e) => {

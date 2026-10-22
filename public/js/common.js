@@ -382,9 +382,13 @@ function initTabIndicator(nav) {
   bar.className = "tabs-indicator";
   nav.prepend(bar);
   const active = () => nav.querySelector("button.active, a.active");
+  const tabs = () => [...nav.querySelectorAll("button:not([data-no-tab]), a:not([data-no-tab])")];
   const label = (el) => el?.textContent.trim();
   const move = (el, animate = true) => {
-    if (!el || el.hidden) return;
+    if (!el || el.hidden) {
+      bar.style.opacity = 0; // 沒有目前分頁（例如在管理後台）就不顯示底塊
+      return;
+    }
     bar.classList.toggle("no-anim", !animate);
     Object.assign(bar.style, {
       width: el.offsetWidth + "px",
@@ -397,14 +401,14 @@ function initTabIndicator(nav) {
   // 從上一頁最後選的分頁位置開始
   let prev = null;
   try { prev = sessionStorage.getItem(TAB_KEY); } catch { /* 忽略 */ }
-  const from = [...nav.querySelectorAll("button, a")].find((el) => !el.hidden && label(el) === prev);
+  const from = active() && tabs().find((el) => !el.hidden && label(el) === prev);
   move(from || active(), false);
   nav.classList.add("has-indicator");
   requestAnimationFrame(() => requestAnimationFrame(() => move(active())));
 
   nav.addEventListener("click", (e) => {
     const el = e.target.closest("button, a");
-    if (!el) return;
+    if (!el || el.hasAttribute("data-no-tab")) return; // 「操作說明」不是分頁
     try { sessionStorage.setItem(TAB_KEY, label(el)); } catch { /* 忽略 */ }
     // 連到其他頁面：先播完滑動再跳頁
     if (el.tagName === "A" && !el.classList.contains("active") && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
