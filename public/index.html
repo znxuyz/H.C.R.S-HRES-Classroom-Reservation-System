@@ -28,6 +28,28 @@
     <button type="button" class="btn ghost help-btn" id="helpBtn">操作說明</button>
     <div class="user" id="userBox"></div>
   </header>
+  <script>
+    // 不等主程式載入，立刻依上次登入的身分顯示「管理後台」按鈕與帳號，避免換頁時閃一下
+    // （身分記錄由 js/common.js 寫入，登入狀態確認後會再校正）
+    (function () {
+      try {
+        var u = JSON.parse(localStorage.getItem("hcrs-user"));
+        if (!u || !u.email) return;
+        var link = document.getElementById("adminLink");
+        if (link && (u.role === "admin" || u.role === "supervisor")) link.hidden = false;
+        var who = document.createElement("span");
+        who.className = "who";
+        who.textContent = u.name;
+        var badge = document.createElement("small");
+        badge.textContent = { admin: "管理員", supervisor: "主管" }[u.role] || "教師";
+        who.appendChild(badge);
+        var logout = document.createElement("button");
+        logout.className = "btn ghost";
+        logout.textContent = "登出";
+        document.getElementById("userBox").replaceChildren(who, logout);
+      } catch (e) { /* 沒有記錄就照原本流程 */ }
+    })();
+  </script>
 
   <main>
     <!-- 公開借用狀況 -->

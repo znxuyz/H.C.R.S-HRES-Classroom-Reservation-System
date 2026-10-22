@@ -27,6 +27,28 @@
     </nav>
     <div class="user" id="userBox"></div>
   </header>
+  <script>
+    // 不等主程式載入，立刻依上次登入的身分顯示「管理後台」按鈕與帳號，避免換頁時閃一下
+    // （身分記錄由 js/common.js 寫入，登入狀態確認後會再校正）
+    (function () {
+      try {
+        var u = JSON.parse(localStorage.getItem("hcrs-user"));
+        if (!u || !u.email) return;
+        var link = document.getElementById("adminLink");
+        if (link && (u.role === "admin" || u.role === "supervisor")) link.hidden = false;
+        var who = document.createElement("span");
+        who.className = "who";
+        who.textContent = u.name;
+        var badge = document.createElement("small");
+        badge.textContent = { admin: "管理員", supervisor: "主管" }[u.role] || "教師";
+        who.appendChild(badge);
+        var logout = document.createElement("button");
+        logout.className = "btn ghost";
+        logout.textContent = "登出";
+        document.getElementById("userBox").replaceChildren(who, logout);
+      } catch (e) { /* 沒有記錄就照原本流程 */ }
+    })();
+  </script>
 
   <main>
     <nav class="subtabs" id="tabs" hidden>
@@ -103,6 +125,19 @@
       <div class="table-wrap"><table class="data" id="roleTable"></table></div>
       <p class="hint">未列在此的 <span class="domain-text"></span> 帳號皆為一般教師。申請通知信會寄給所有「主管」；若沒有設定主管則寄給管理員。</p>
     </section>
+    <script>
+      // 依上次登入的身分先顯示後台分頁，避免閃出「請以管理員或主管帳號登入」
+      (function () {
+        try {
+          var u = JSON.parse(localStorage.getItem("hcrs-user"));
+          if (!u || (u.role !== "admin" && u.role !== "supervisor")) return;
+          document.getElementById("denied").hidden = true;
+          document.getElementById("tabs").hidden = false;
+          document.querySelectorAll(".tab.active").forEach(function (t) { t.hidden = false; });
+          if (u.role !== "admin") document.querySelectorAll(".admin-only").forEach(function (el) { el.hidden = true; });
+        } catch (e) { /* 沒有記錄就照原本流程 */ }
+      })();
+    </script>
   </main>
 
   <!-- 管理員編輯借用 -->

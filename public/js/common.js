@@ -399,6 +399,7 @@ function initTabIndicator(nav) {
   try { prev = sessionStorage.getItem(TAB_KEY); } catch { /* 忽略 */ }
   const from = [...nav.querySelectorAll("button, a")].find((el) => !el.hidden && label(el) === prev);
   move(from || active(), false);
+  nav.classList.add("has-indicator");
   requestAnimationFrame(() => requestAnimationFrame(() => move(active())));
 
   nav.addEventListener("click", (e) => {
