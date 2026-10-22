@@ -1,6 +1,6 @@
 import {
   db, collection, doc, getDocs, addDoc, updateDoc, query, where, serverTimestamp,
-  watchUser, renderUserBox, loadRooms, loadPeriods, setupTabs, toast, esc, SITE_TITLE,
+  watchUser, cachedUser, renderUserBox, loadRooms, loadPeriods, setupTabs, toast, esc, SITE_TITLE,
   WEEKDAY_LABEL, TYPE_LABEL, STATUS_LABEL, pad, today, parseDate, addDays, monthRange,
   occursOn, occurrences, findConflictDate, periodNames, describeSchedule, roomColor, teacherOf, usageText,
   sendMail, managerEmails, reservationMailHtml,
@@ -405,8 +405,10 @@ setupTabs($("tabs"));
 let settingsLoaded;
 const settingsReady = new Promise((resolve) => (settingsLoaded = resolve));
 
-// 先顯示登入按鈕並監聽登入狀態，不受資料讀取成敗影響
-renderUserBox($("userBox"), null);
+// 先依上次記住的身分顯示（避免「管理後台」按鈕閃一下），再監聽登入狀態校正
+const cached = cachedUser();
+renderUserBox($("userBox"), cached);
+$("adminLink").hidden = !cached?.isManager;
 watchUser((user) => {
   state.user = user;
   renderUserBox($("userBox"), user);

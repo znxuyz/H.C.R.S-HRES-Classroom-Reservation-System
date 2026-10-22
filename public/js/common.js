@@ -129,25 +129,47 @@ async function getRole(email) {
   }
 }
 
+// 記住上次確認過的身分：換頁時先照這個顯示（例如「管理後台」按鈕），
+// 等 Google 登入狀態確認完再校正，避免按鈕、帳號名稱閃一下
+const USER_CACHE = "hcrs-user";
+
+function withFlags(u) {
+  return { ...u, isAdmin: u.role === "admin", isManager: u.role === "admin" || u.role === "supervisor" };
+}
+
+export function cachedUser() {
+  try {
+    const u = JSON.parse(localStorage.getItem(USER_CACHE));
+    return u?.email ? withFlags(u) : null;
+  } catch {
+    return null;
+  }
+}
+
+function cacheUser(u) {
+  try {
+    if (u) localStorage.setItem(USER_CACHE, JSON.stringify({ uid: u.uid, email: u.email, name: u.name, role: u.role }));
+    else localStorage.removeItem(USER_CACHE);
+  } catch { /* 無法使用 localStorage 時就不記 */ }
+}
+
 // cb(user|null)；user = { uid, email, name, role, isAdmin, isManager }
 export function watchUser(cb) {
   return onAuthStateChanged(auth, async (u) => {
-    if (!u) return cb(null);
+    if (!u) {
+      cacheUser(null);
+      return cb(null);
+    }
     if (!isAllowedEmail(u.email)) {
       await signOut(auth);
+      cacheUser(null);
       toast(`請使用 ${DOMAIN_TEXT} 帳號登入`, true);
       return cb(null);
     }
     const email = u.email.toLowerCase();
-    const role = await getRole(email);
-    cb({
-      uid: u.uid,
-      email,
-      name: u.displayName || email.split("@")[0],
-      role,
-      isAdmin: role === "admin",
-      isManager: role === "admin" || role === "supervisor",
-    });
+    const user = withFlags({ uid: u.uid, email, name: u.displayName || email.split("@")[0], role: await getRole(email) });
+    cacheUser(user);
+    cb(user);
   });
 }
 
@@ -349,3 +371,51 @@ export function setupTabs(nav, onChange) {
   const initial = nav.querySelector(`button[data-tab="${location.hash.slice(1)}"]`);
   if (initial) initial.click();
 }
+
+// ---------- 頂部分頁：滑動底塊 ----------
+// 切換分頁時，白色底塊從原本的分頁滑到新的分頁；
+// 換頁（例如進出管理後台）時先在原頁面滑過去再跳頁，新頁面一開就停在正確位置
+const TAB_KEY = "hcrs-tab";
+
+function initTabIndicator(nav) {
+  const bar = document.createElement("span");
+  bar.className = "tabs-indicator";
+  nav.prepend(bar);
+  const active = () => nav.querySelector("button.active, a.active");
+  const label = (el) => el?.textContent.trim();
+  const move = (el, animate = true) => {
+    if (!el || el.hidden) return;
+    bar.classList.toggle("no-anim", !animate);
+    Object.assign(bar.style, {
+      width: el.offsetWidth + "px",
+      height: el.offsetHeight + "px",
+      transform: `translate(${el.offsetLeft}px, ${el.offsetTop}px)`,
+      opacity: 1,
+    });
+  };
+
+  // 從上一頁最後選的分頁位置開始
+  let prev = null;
+  try { prev = sessionStorage.getItem(TAB_KEY); } catch { /* 忽略 */ }
+  const from = [...nav.querySelectorAll("button, a")].find((el) => !el.hidden && label(el) === prev);
+  move(from || active(), false);
+  requestAnimationFrame(() => requestAnimationFrame(() => move(active())));
+
+  nav.addEventListener("click", (e) => {
+    const el = e.target.closest("button, a");
+    if (!el) return;
+    try { sessionStorage.setItem(TAB_KEY, label(el)); } catch { /* 忽略 */ }
+    // 連到其他頁面：先播完滑動再跳頁
+    if (el.tagName === "A" && !el.classList.contains("active") && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
+      e.preventDefault();
+      move(el);
+      setTimeout(() => (location.href = el.href), 230);
+    }
+  });
+  // 分頁切換、管理後台按鈕出現或消失、字型載入、視窗縮放時重新對齊
+  new MutationObserver(() => move(active())).observe(nav, { subtree: true, attributes: true, attributeFilter: ["class", "hidden"] });
+  window.addEventListener("resize", () => move(active(), false));
+  document.fonts?.ready.then(() => move(active(), false));
+}
+
+document.querySelectorAll(".topbar .tabs").forEach(initTabIndicator);

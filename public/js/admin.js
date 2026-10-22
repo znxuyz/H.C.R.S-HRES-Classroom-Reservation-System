@@ -1,6 +1,6 @@
 import {
   db, collection, doc, getDocs, addDoc, setDoc, updateDoc, deleteDoc, deleteField, query, where, serverTimestamp, onSnapshot,
-  watchUser, renderUserBox, loadRooms, loadPeriods, setupTabs, toast, esc, SITE_TITLE, ROLE_LABEL,
+  watchUser, cachedUser, renderUserBox, loadRooms, loadPeriods, setupTabs, toast, esc, SITE_TITLE, ROLE_LABEL,
   TYPE_LABEL, STATUS_LABEL, monthRange, occurrences, findConflictDate, periodNames,
   describeSchedule, sendMail, reservationMailHtml, teacherOf, usageText, DOMAIN_TEXT, isAllowedEmail,
   WEEKDAY_LABEL, addDays,
@@ -480,12 +480,8 @@ setupTabs($("tabs"), (tab) => {
   if (tab === "roles") loadRoles();
 });
 
-renderUserBox($("userBox"), null);
-watchUser(async (user) => {
-  state.user = user;
-  state.ready = false;
-  unsubscribe?.();
-  unsubscribe = null;
+// 依身分顯示或隱藏後台各區塊
+function showAccess(user) {
   renderUserBox($("userBox"), user);
   const ok = !!user?.isManager;
   $("denied").hidden = ok;
@@ -493,7 +489,17 @@ watchUser(async (user) => {
   $("tabs").hidden = !ok;
   document.querySelectorAll(".tab").forEach((t) => (t.hidden = !ok || !t.classList.contains("active")));
   document.querySelectorAll(".admin-only").forEach((el) => (el.hidden = !user?.isAdmin));
-  if (!ok) return;
+  return ok;
+}
+
+// 先依上次記住的身分顯示，避免畫面閃一下；確認登入狀態後再校正
+showAccess(cachedUser());
+watchUser(async (user) => {
+  state.user = user;
+  state.ready = false;
+  unsubscribe?.();
+  unsubscribe = null;
+  if (!showAccess(user)) return;
 
   try {
     [state.rooms, state.periods] = await Promise.all([loadRooms(true), loadPeriods()]);

@@ -99,12 +99,25 @@ h2, h3 { letter-spacing: .01em; }
   transition: color .15s, background .15s, box-shadow .15s;
 }
 .tabs button:hover, .tabs a:hover { color: var(--text); }
-.tabs button.active, .tabs a.active {
+.tabs button.active, .tabs a.active { color: var(--primary); font-weight: 700; }
+
+/* 白色底塊：切換分頁時從原位置滑到新分頁（位置由 common.js 計算） */
+.topbar .tabs { position: relative; }
+.topbar .tabs button, .topbar .tabs a { position: relative; z-index: 1; }
+.tabs-indicator {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 0;
+  border-radius: 9px;
   background: #fff;
-  color: var(--primary);
-  font-weight: 700;
   box-shadow: 0 1px 2px rgba(16, 24, 40, .08), 0 1px 1px rgba(16, 24, 40, .04);
+  opacity: 0;
+  pointer-events: none;
+  transition: transform .32s cubic-bezier(.3, .7, .2, 1), width .32s cubic-bezier(.3, .7, .2, 1), height .32s, opacity .2s;
 }
+.tabs-indicator.no-anim { transition: none; }
+@media (prefers-reduced-motion: reduce) { .tabs-indicator { transition: none; } }
 
 /* 管理後台的第二排分頁 */
 .subtabs {
