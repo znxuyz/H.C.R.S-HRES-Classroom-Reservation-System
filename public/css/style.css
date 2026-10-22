@@ -432,6 +432,7 @@ table.grid td.busy {
 .form h2 { margin: 0 0 18px; font-size: 21px; }
 .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 18px; font-size: 14px; font-weight: 700; color: var(--text-2); border: 0; padding: 0; min-width: 0; }
 .field legend { font-weight: 700; margin-bottom: 8px; padding: 0; }
+.optional { font-weight: 400; color: var(--muted); font-size: 13px; }
 .field input, .field select, .field textarea { font-size: 15px; font-weight: 400; }
 .inline { display: inline-flex; align-items: center; gap: 8px; margin-right: 18px; font-weight: 400; color: var(--text); cursor: pointer; }
 /* 單選（借用方式、身分）做成選項卡 */
