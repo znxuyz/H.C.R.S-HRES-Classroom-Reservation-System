@@ -424,3 +424,16 @@ function initTabIndicator(nav) {
 }
 
 document.querySelectorAll(".topbar .tabs").forEach(initTabIndicator);
+
+// 記下頂部列的高度，讓月份列可以剛好貼在頂部列下方（手機上頂部列是兩列，高度不同）
+const topbar = document.querySelector(".topbar");
+// 月份列的高度也記下來，讓月曆的星期列（一、二、三…）貼在月份列下方
+const monthBar = document.querySelector(".month-bar");
+if (topbar && "ResizeObserver" in window) {
+  const root = document.documentElement.style;
+  new ResizeObserver(() => {
+    root.setProperty("--header-h", topbar.offsetHeight + "px");
+    if (monthBar) root.setProperty("--month-h", monthBar.offsetHeight + "px");
+  }).observe(topbar);
+  if (monthBar) new ResizeObserver(() => root.setProperty("--month-h", monthBar.offsetHeight + "px")).observe(monthBar);
+}

@@ -60,13 +60,13 @@
   <main>
     <!-- 公開借用狀況 -->
     <section id="tab-calendar" class="tab active">
-      <div class="toolbar">
+      <div class="toolbar month-bar">
         <button class="btn ghost" id="prevMonth" aria-label="上個月">‹</button>
         <h2 id="monthLabel"></h2>
         <button class="btn ghost" id="nextMonth" aria-label="下個月">›</button>
         <button class="btn ghost" id="thisMonth">本月</button>
         <span class="spacer"></span>
-        <label>教室 <select id="roomFilter"></select></label>
+        <label><span class="toolbar-label">教室</span> <select id="roomFilter" aria-label="教室"></select></label>
       </div>
       <div id="roomLegend" class="legend"></div>
       <div id="calendar" class="calendar"></div>
