@@ -129,6 +129,26 @@ function openDay(ds) {
   if (!rooms.length) html = `<p class="hint">尚未設定教室。</p>`;
   $("dayBody").innerHTML = html;
   $("dayDialog").showModal();
+  // 教室太多、畫面太窄放不下表格時，改成依教室分組的清單，避免右邊被切掉
+  const table = $("dayBody").querySelector("table");
+  if (table && table.scrollWidth > $("dayBody").clientWidth + 1) $("dayBody").innerHTML = dayList(rooms, list);
+}
+
+// 當日借用（清單版）：每間教室一張卡片，列出被借用的節次；沒人借的顯示「整天可借」
+function dayList(rooms, list) {
+  return `<div class="day-list">${rooms.map((room) => {
+    const color = roomColor(state.rooms, room.id);
+    const booked = state.periods
+      .map((p) => [p, list.find((x) => x.roomId === room.id && x.periodIds.includes(p.id))])
+      .filter(([, r]) => r);
+    return `<div class="day-room" style="--c:${color}">
+      <div class="day-room-head"><i></i>${esc(room.name)}<span>${booked.length ? `${booked.length} 節已借` : "整天可借"}</span></div>
+      ${booked.map(([p, r]) => `<div class="day-slot">
+        <b>${esc(p.name)}<small>${esc(p.start)}-${esc(p.end)}</small></b>
+        <span>${esc(teacherOf(r))}${usageText(r) ? `<small>${esc(usageText(r))}</small>` : ""}</span>
+      </div>`).join("")}
+    </div>`;
+  }).join("")}</div>`;
 }
 
 $("dayClose").onclick = () => $("dayDialog").close();

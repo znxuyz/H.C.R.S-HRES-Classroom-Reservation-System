@@ -175,7 +175,8 @@ h2, h3 { letter-spacing: .01em; }
   font-weight: 700;
 }
 
-main { max-width: 1240px; margin: 0 auto; padding: 28px 28px 48px; }
+/* 內容盡量用滿螢幕寬度（超寬螢幕才留邊） */
+main { max-width: 1680px; margin: 0 auto; padding: 28px 28px 48px; }
 
 .tab { display: none; }
 .tab.active { display: block; animation: fade-in .25s ease-out; }
@@ -215,6 +216,9 @@ main { max-width: 1240px; margin: 0 auto; padding: 28px 28px 48px; }
 .btn:hover:not(:disabled) { background: var(--primary-hover); border-color: var(--primary-hover); }
 .btn:active:not(:disabled) { transform: translateY(1px); }
 .btn:focus-visible { outline: none; box-shadow: 0 0 0 4px var(--primary-ring); }
+/* 用滑鼠點按鈕不顯示外框，用鍵盤操作時才顯示圓角焦點框 */
+button:focus:not(:focus-visible), a:focus:not(:focus-visible) { outline: none; }
+.tabs button:focus-visible, .tabs a:focus-visible, .subtabs button:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--primary-ring); border-radius: 9px; }
 .btn:disabled { opacity: .45; cursor: default; }
 .btn.ghost { background: #fff; color: var(--text-2); border-color: var(--line-strong); box-shadow: var(--shadow-sm); }
 .btn.ghost:hover:not(:disabled) { background: #f9fafb; border-color: #c4cad6; color: var(--text); }
@@ -407,12 +411,14 @@ th { background: #f9fafb; font-size: 13px; font-weight: 700; color: var(--muted)
 th small, td small { display: block; color: var(--muted); font-weight: 400; font-size: 12px; letter-spacing: 0; }
 .nowrap { white-space: nowrap; }
 
-/* 資料表：外框圓角＋列滑過效果 */
-table.data {
+/* 資料表：圓角外框放在外層，表格太寬時在框內左右捲動，不會被切掉 */
+.data-wrap {
+  background: var(--card);
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  overflow: hidden;
   box-shadow: var(--shadow);
+  overflow-x: auto;
+  margin-bottom: 16px;
 }
 table.data tbody tr { transition: background .12s; }
 table.data tbody tr:hover { background: #fafbfd; }
@@ -422,9 +428,53 @@ table.data td:first-child { color: var(--text); font-weight: 500; }
 table.data td .btn + .btn { margin-left: 4px; }
 table.data td input:not([type="checkbox"]) { width: 100%; min-width: 90px; }
 table.data th { white-space: nowrap; }
-/* 所有借用：短欄位不換行，表格太寬時左右捲動 */
-#allTable { min-width: 1120px; }
-#allTable td:nth-child(-n+4), #allTable td:nth-child(8) { white-space: nowrap; }
+/* 所有借用：短欄位不換行；日期、節次、用途、時間只在「、」、空白等處換行，不會一個字一行 */
+#allTable td { white-space: nowrap; }
+#allTable td:nth-child(3), #allTable td:nth-child(4), #allTable td:nth-child(5), #allTable td:nth-child(7) { white-space: normal; word-break: keep-all; }
+#allTable td:nth-child(3) { min-width: 10em; }
+#allTable td:nth-child(4), #allTable td:nth-child(5) { min-width: 7em; }
+#allTable td:nth-child(7) { min-width: 6em; }
+#allTable td:last-child { text-align: right; }
+
+/* 畫面太窄放不下表格時（由 admin.js 判斷），改成一筆一張卡片 */
+.data-wrap.as-cards { background: none; border: 0; box-shadow: none; overflow: visible; }
+.as-cards table, .as-cards tbody, .as-cards tr, .as-cards td { display: block; width: 100%; }
+.as-cards table { background: none; }
+.as-cards thead { display: none; }
+.as-cards tr {
+  margin-bottom: 12px;
+  padding: 8px 16px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+.as-cards tbody tr:hover { background: var(--card); }
+.as-cards td {
+  position: relative;
+  min-height: 2.4em;
+  min-width: 0 !important;
+  padding: 7px 0 7px 6.5em;
+  border: 0;
+  border-bottom: 1px dashed var(--line);
+  white-space: normal !important;
+  word-break: normal !important;
+  text-align: left !important;
+}
+.as-cards tr td:last-child { border-bottom: 0; }
+.as-cards td::before {
+  content: attr(data-label);
+  position: absolute;
+  left: 0;
+  top: 7px;
+  width: 6em;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+.as-cards td[data-label=""] { padding-left: 0; }
+.as-cards td[data-label=""]::before { display: none; }
+.as-cards td:empty { display: none; }
 
 /* 當日借用表 */
 table.grid { border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
@@ -442,9 +492,20 @@ table.grid td.busy {
   color: var(--text);
 }
 
+/* 當日借用（清單版，畫面太窄時使用） */
+.day-list { display: grid; gap: 10px; }
+.day-room { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.day-room-head { display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: #f9fafb; font-weight: 700; }
+.day-room-head i { width: 9px; height: 9px; border-radius: 50%; background: var(--c); flex-shrink: 0; }
+.day-room-head span { margin-left: auto; font-size: 12.5px; font-weight: 500; color: var(--muted); white-space: nowrap; }
+.day-slot { display: flex; gap: 12px; padding: 9px 14px; border-top: 1px solid var(--line); box-shadow: inset 3px 0 0 var(--c); }
+.day-slot b { flex: 0 0 6.2em; font-size: 14px; }
+.day-slot span { flex: 1; min-width: 0; font-weight: 700; color: var(--text); }
+.day-slot small { display: block; font-size: 12px; font-weight: 400; color: var(--muted); }
+
 /* ---------- 表單 ---------- */
 /* 申請表、我的申請置中，閱讀比較舒服 */
-#tab-apply > *, #tab-mine > * { max-width: 920px; margin-left: auto; margin-right: auto; }
+#tab-apply > *, #tab-mine > * { max-width: 1100px; margin-left: auto; margin-right: auto; }
 .form h2 { margin: 0 0 18px; font-size: 21px; }
 .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 18px; font-size: 14px; font-weight: 700; color: var(--text-2); border: 0; padding: 0; min-width: 0; }
 .field legend { font-weight: 700; margin-bottom: 8px; padding: 0; }

@@ -28,6 +28,27 @@ function watchReservations() {
   }, (e) => toast("讀取借用資料失敗：" + e.message, true));
 }
 
+// ===================== 表格自動排版 =====================
+// 表格放得下就照原樣顯示；畫面太窄放不下時，改成一筆一張卡片（每格前面標示欄位名稱），
+// 不需要左右捲動、也不會被切掉
+function fitTable(table) {
+  const wrap = table.closest(".data-wrap");
+  if (!wrap) return;
+  // 卡片上的欄位名稱用短名稱（data-short），避免太長換行擠到下一格
+  const labels = [...table.querySelectorAll("thead th")].map((th) => th.dataset.short || th.textContent.trim());
+  table.querySelectorAll("tbody tr").forEach((tr) =>
+    [...tr.children].forEach((td, i) => td.setAttribute("data-label", td.colSpan > 1 ? "" : labels[i] || "")));
+  wrap.classList.remove("as-cards");
+  if (!wrap.offsetParent) return; // 分頁隱藏中，切換到該分頁時會重新排版
+  if (table.scrollWidth > wrap.clientWidth + 1) wrap.classList.add("as-cards");
+}
+
+let fitTimer;
+window.addEventListener("resize", () => {
+  clearTimeout(fitTimer);
+  fitTimer = setTimeout(() => document.querySelectorAll(".data-wrap table").forEach(fitTable), 150);
+});
+
 // ===================== 待審核 =====================
 
 function loadPending() {
@@ -126,22 +147,21 @@ function filteredAll() {
 
 function renderAll() {
   const list = filteredAll();
-  const head = `<thead><tr><th>教室</th><th>申請人</th><th>使用教師</th><th>方式</th><th>日期</th><th>節次</th><th>班級｜課程｜用途</th><th>狀態</th><th>申請時間</th><th></th></tr></thead>`;
+  const head = `<thead><tr><th>教室</th><th>使用教師</th><th>日期</th><th>節次</th><th data-short="用途">班級｜課程｜用途</th><th>狀態</th><th>申請時間</th><th></th></tr></thead>`;
   if (!list.length) {
-    $("allTable").innerHTML = head + `<tbody><tr><td colspan="10" class="hint">沒有符合的資料</td></tr></tbody>`;
+    $("allTable").innerHTML = head + `<tbody><tr><td colspan="8" class="hint">沒有符合的資料</td></tr></tbody>`;
+    fitTable($("allTable"));
     return;
   }
   $("allTable").innerHTML = head + "<tbody>" + list.map((r) => `
     <tr>
       <td>${esc(r.roomName)}</td>
-      <td>${esc(r.applicantName)}</td>
-      <td>${esc(teacherOf(r))}</td>
-      <td>${TYPE_LABEL[r.type]}</td>
-      <td>${esc(describeSchedule(r))}</td>
+      <td>${esc(teacherOf(r))}${teacherOf(r) !== r.applicantName ? `<small>申請人：${esc(r.applicantName)}</small>` : ""}</td>
+      <td><small>${TYPE_LABEL[r.type]}</small>${esc(describeSchedule(r))}</td>
       <td>${esc(periodNames(r.periodIds, state.periods).join("、"))}</td>
       <td>${esc(usageText(r))}${r.reviewNote ? `<small>審核意見：${esc(r.reviewNote)}</small>` : ""}</td>
       <td><span class="badge ${r.status}">${STATUS_LABEL[r.status]}</span>${r.reviewedByName ? `<small>${esc(r.reviewedByName)}</small>` : ""}${r.editedByName ? `<small>已由 ${esc(r.editedByName)} 修改</small>` : ""}</td>
-      <td class="nowrap">${tsText(r.createdAt)}</td>
+      <td>${tsText(r.createdAt)}</td>
       <td class="nowrap">
         ${state.user.isAdmin && ["pending", "approved"].includes(r.status) ? `<button class="btn small ghost" data-edit="${r.id}">編輯</button>` : ""}
         ${["pending", "approved"].includes(r.status) ? `<button class="btn small ghost" data-cancel="${r.id}">取消</button>` : ""}
@@ -149,6 +169,7 @@ function renderAll() {
       </td>
     </tr>`).join("") + "</tbody>";
 
+  fitTable($("allTable"));
   $("allTable").querySelectorAll("[data-cancel]").forEach((b) => (b.onclick = async () => {
     const r = state.all.find((x) => x.id === b.dataset.cancel);
     const reason = prompt(`取消 ${r.applicantName} 的 ${r.roomName} 借用，原因（會通知申請人）：`, "");
@@ -345,6 +366,7 @@ async function loadRoomsTab() {
       <td><input type="checkbox" data-active="${r.id}" ${r.active !== false ? "checked" : ""}></td>
       <td><button class="btn small danger ghost" data-delroom="${r.id}">刪除</button></td>
     </tr>`).join("") + "</tbody>";
+  fitTable($("roomTable"));
 
   const t = $("roomTable");
   const save = (id, data) => updateDoc(doc(db, "rooms", id), data).then(() => toast("已儲存")).catch((e) => toast(e.message, true));
@@ -398,6 +420,7 @@ function renderPeriods() {
       <td><input type="time" data-i="${i}" data-k="end" value="${esc(p.end)}"></td>
       <td><button class="btn small danger ghost" data-pdel="${i}">刪除</button></td>
     </tr>`).join("") + "</tbody>";
+  fitTable($("periodTable"));
   const t = $("periodTable");
   t.querySelectorAll("input[data-k]").forEach((el) => (el.oninput = () => (periodDraft[+el.dataset.i][el.dataset.k] = el.value)));
   const move = (i, j) => {
@@ -442,6 +465,7 @@ async function loadRoles() {
       <td>${esc(r.email)}</td><td>${esc(r.name || "")}</td><td>${ROLE_LABEL[r.role] || esc(r.role)}</td>
       <td><button class="btn small danger ghost" data-delrole="${esc(r.email)}">移除</button></td>
     </tr>`).join("") + "</tbody>";
+  fitTable($("roleTable"));
   $("roleTable").querySelectorAll("[data-delrole]").forEach((el) => (el.onclick = async () => {
     if (el.dataset.delrole === state.user.email && !confirm("您正在移除自己的權限，確定嗎？")) return;
     if (!confirm(`移除 ${el.dataset.delrole} 的權限（改為一般教師）？`)) return;
