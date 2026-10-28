@@ -79,6 +79,8 @@
       <form id="applyForm" class="card form" hidden>
         <h2>申請借用教室</h2>
 
+        <div class="form-grid">
+        <div class="form-col">
         <label class="field">教室
           <select id="fRoom" required></select>
         </label>
@@ -112,7 +114,9 @@
           <label class="field">開始日期 <input type="date" id="fStart"></label>
           <label class="field">結束日期 <input type="date" id="fEnd"></label>
         </div>
+        </div>
 
+        <div class="form-col">
         <fieldset class="field">
           <legend>節次</legend>
           <div class="quick-periods">
@@ -144,6 +148,8 @@
         <label class="field"><span>備註 <span class="optional">（選填）</span></span>
           <textarea id="fNote" rows="2" maxlength="300"></textarea>
         </label>
+        </div>
+        </div>
 
         <label class="inline manager-only" hidden>
           <input type="checkbox" id="fAutoApprove"> 直接核准（管理員／主管專用，不寄審核信）

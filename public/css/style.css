@@ -28,6 +28,8 @@
 }
 
 * { box-sizing: border-box; }
+/* 固定預留捲軸位置：內容長短不同的分頁切換時，畫面不會左右跳動 */
+html { scrollbar-gutter: stable; }
 [hidden] { display: none !important; }
 
 body {
@@ -148,7 +150,11 @@ h2, h3 { letter-spacing: .01em; }
   transition: color .15s, border-color .15s;
 }
 .subtabs button:hover { color: var(--text); }
-.subtabs button.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 700; }
+.subtabs button.active { color: var(--primary); font-weight: 700; }
+/* 底線由滑動元件顯示；滑動元件還沒準備好之前先用一般底線 */
+.subtabs:not(.has-indicator) button.active { border-bottom-color: var(--primary); }
+.subtabs { position: relative; }
+.tabs-indicator.underline { z-index: 1; border-radius: 2px; background: var(--primary); box-shadow: none; }
 .count:not(:empty) {
   display: inline-grid;
   place-items: center;
@@ -218,7 +224,8 @@ main { max-width: 1680px; margin: 0 auto; padding: 28px 28px 48px; }
 .btn:focus-visible { outline: none; box-shadow: 0 0 0 4px var(--primary-ring); }
 /* 用滑鼠點按鈕不顯示外框，用鍵盤操作時才顯示圓角焦點框 */
 button:focus:not(:focus-visible), a:focus:not(:focus-visible) { outline: none; }
-.tabs button:focus-visible, .tabs a:focus-visible, .subtabs button:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--primary-ring); border-radius: 9px; }
+/* 分頁按鈕不顯示焦點框（目前位置由滑動底塊／底線表示） */
+.tabs button:focus, .tabs a:focus, .subtabs button:focus { outline: none; box-shadow: none; }
 .btn:disabled { opacity: .45; cursor: default; }
 .btn.ghost { background: #fff; color: var(--text-2); border-color: var(--line-strong); box-shadow: var(--shadow-sm); }
 .btn.ghost:hover:not(:disabled) { background: #f9fafb; border-color: #c4cad6; color: var(--text); }
@@ -504,8 +511,12 @@ table.grid td.busy {
 .day-slot small { display: block; font-size: 12px; font-weight: 400; color: var(--muted); }
 
 /* ---------- 表單 ---------- */
-/* 申請表、我的申請置中，閱讀比較舒服 */
-#tab-apply > *, #tab-mine > * { max-width: 1100px; margin-left: auto; margin-right: auto; }
+/* 申請表：寬螢幕分左右兩欄（左：教室與日期，右：節次與用途），所有分頁寬度一致 */
+.form-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0 40px; }
+@media (min-width: 1100px) {
+  .form-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .form-grid > .form-col + .form-col { padding-left: 40px; border-left: 1px solid var(--line); }
+}
 .form h2 { margin: 0 0 18px; font-size: 21px; }
 .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 18px; font-size: 14px; font-weight: 700; color: var(--text-2); border: 0; padding: 0; min-width: 0; }
 .field legend { font-weight: 700; margin-bottom: 8px; padding: 0; }

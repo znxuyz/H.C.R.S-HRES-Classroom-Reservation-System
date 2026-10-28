@@ -377,30 +377,34 @@ export function setupTabs(nav, onChange) {
 // 換頁（例如進出管理後台）時先在原頁面滑過去再跳頁，新頁面一開就停在正確位置
 const TAB_KEY = "hcrs-tab";
 
-function initTabIndicator(nav) {
+// underline：底線樣式（管理後台的功能按鈕）；remember：跨頁記住上次的位置（頂部分頁）
+function initTabIndicator(nav, { underline = false, remember = true } = {}) {
   const bar = document.createElement("span");
-  bar.className = "tabs-indicator";
+  bar.className = "tabs-indicator" + (underline ? " underline" : "");
   nav.prepend(bar);
   const active = () => nav.querySelector("button.active, a.active");
   const tabs = () => [...nav.querySelectorAll("button:not([data-no-tab]), a:not([data-no-tab])")];
   const label = (el) => el?.textContent.trim();
+  let placed = false;
   const move = (el, animate = true) => {
     if (!el || el.hidden) {
       bar.style.opacity = 0; // 沒有目前分頁（例如在管理後台）就不顯示底塊
       return;
     }
-    bar.classList.toggle("no-anim", !animate);
+    if (!nav.offsetParent) return; // 按鈕列還沒顯示（例如等登入確認），顯示時再定位
+    bar.classList.toggle("no-anim", !animate || !placed);
     Object.assign(bar.style, {
       width: el.offsetWidth + "px",
-      height: el.offsetHeight + "px",
-      transform: `translate(${el.offsetLeft}px, ${el.offsetTop}px)`,
+      height: (underline ? 2 : el.offsetHeight) + "px",
+      transform: `translate(${el.offsetLeft}px, ${underline ? el.offsetTop + el.offsetHeight - 2 : el.offsetTop}px)`,
       opacity: 1,
     });
+    placed = true;
   };
 
   // 從上一頁最後選的分頁位置開始
   let prev = null;
-  try { prev = sessionStorage.getItem(TAB_KEY); } catch { /* 忽略 */ }
+  if (remember) try { prev = sessionStorage.getItem(TAB_KEY); } catch { /* 忽略 */ }
   const from = active() && tabs().find((el) => !el.hidden && label(el) === prev);
   move(from || active(), false);
   nav.classList.add("has-indicator");
@@ -409,7 +413,7 @@ function initTabIndicator(nav) {
   nav.addEventListener("click", (e) => {
     const el = e.target.closest("button, a");
     if (!el || el.hasAttribute("data-no-tab")) return; // 「操作說明」不是分頁
-    try { sessionStorage.setItem(TAB_KEY, label(el)); } catch { /* 忽略 */ }
+    if (remember) try { sessionStorage.setItem(TAB_KEY, label(el)); } catch { /* 忽略 */ }
     // 連到其他頁面：先播完滑動再跳頁
     if (el.tagName === "A" && !el.classList.contains("active") && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
       e.preventDefault();
@@ -417,12 +421,13 @@ function initTabIndicator(nav) {
       setTimeout(() => (location.href = el.href), 230);
     }
   });
-  // 分頁切換、管理後台按鈕出現或消失、字型載入、視窗縮放時重新對齊
+  // 分頁切換、按鈕出現或消失、字型載入、視窗縮放時重新對齊
   new MutationObserver(() => move(active())).observe(nav, { subtree: true, attributes: true, attributeFilter: ["class", "hidden"] });
   window.addEventListener("resize", () => move(active(), false));
   document.fonts?.ready.then(() => move(active(), false));
 }
 
+document.querySelectorAll(".subtabs").forEach((nav) => initTabIndicator(nav, { underline: true, remember: false }));
 document.querySelectorAll(".topbar .tabs").forEach(initTabIndicator);
 
 // 記下頂部列的高度，讓月份列可以剛好貼在頂部列下方（手機上頂部列是兩列，高度不同）
