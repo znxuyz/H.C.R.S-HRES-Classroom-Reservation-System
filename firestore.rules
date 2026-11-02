@@ -32,6 +32,12 @@ service cloud.firestore {
     }
 
     // 管理員或主管
+    // 管理員在後台開啟「自動同意申請」
+    function autoApproveOn() {
+      return exists(/databases/$(database)/documents/settings/approval)
+        && get(/databases/$(database)/documents/settings/approval).data.get('autoApprove', false) == true;
+    }
+
     function isManager() {
       return signedIn() && (myEmail() in bootstrapAdmins() || myRole() in ['admin', 'supervisor']);
     }
@@ -57,11 +63,12 @@ service cloud.firestore {
       // 未登入者只能看到已核准的借用；登入教師可看全部（用來檢查衝突）
       allow read: if resource.data.status == 'approved' || signedIn();
 
-      // 申請：只能以自己的身分申請；一般教師只能送出「待審核」，管理員/主管可直接核准
+      // 申請：只能以自己的身分申請；一般教師送出「待審核」，
+      // 管理員/主管可直接核准，或管理員開啟「自動同意申請」時任何人送出即核准
       allow create: if signedIn()
         && request.resource.data.applicantEmail == myEmail()
         && (request.resource.data.status == 'pending'
-            || (request.resource.data.status == 'approved' && isManager()));
+            || (request.resource.data.status == 'approved' && (isManager() || autoApproveOn())));
 
       // 管理員/主管可審核；申請人只能把自己的申請改為「已取消」
       allow update: if isManager()

@@ -1,6 +1,6 @@
 import {
   db, collection, doc, getDocs, addDoc, updateDoc, query, where, serverTimestamp,
-  watchUser, cachedUser, renderUserBox, loadRooms, loadPeriods, setupTabs, toast, esc, SITE_TITLE,
+  watchUser, cachedUser, renderUserBox, loadRooms, loadAutoApprove, loadPeriods, setupTabs, toast, esc, SITE_TITLE,
   WEEKDAY_LABEL, TYPE_LABEL, STATUS_LABEL, pad, today, parseDate, addDays, monthRange,
   occursOn, occurrences, findConflictDate, periodNames, describeSchedule, roomColor, teacherOf, usageText,
   sendMail, managerEmails, reservationMailHtml,
@@ -16,6 +16,7 @@ const state = {
   year: new Date().getFullYear(),
   month: new Date().getMonth(),
   monthRes: [],
+  autoApprove: false,
 };
 
 document.title = SITE_TITLE;
@@ -304,29 +305,37 @@ $("applyForm").onsubmit = async (e) => {
       return;
     }
 
-    const auto = state.user.isManager && $("fAutoApprove").checked;
+    // 送出當下再確認一次審核方式（管理員可能剛切換）
+    state.autoApprove = await loadAutoApprove().catch(() => false);
+    showApprovalMode();
+    const self = state.user.isManager && $("fAutoApprove").checked;
+    const auto = self || state.autoApprove;
     Object.assign(r, {
       applicantEmail: state.user.email,
       applicantName: state.user.name,
       status: auto ? "approved" : "pending",
       createdAt: serverTimestamp(),
-      ...(auto ? { reviewedBy: state.user.email, reviewedByName: state.user.name, reviewedAt: serverTimestamp() } : {}),
+      ...(self ? { reviewedBy: state.user.email, reviewedByName: state.user.name, reviewedAt: serverTimestamp() } : {}),
+      ...(!self && auto ? { reviewedBy: "auto", reviewedByName: "自動核准", reviewedAt: serverTimestamp() } : {}),
     });
     await addDoc(collection(db, "reservations"), r);
 
-    if (!auto) {
+    if (!self) {
       // 申請已存好；通知信寄送失敗不影響申請結果
       const adminUrl = new URL("admin.html", location.href).href;
       managerEmails()
         .then((to) => sendMail(
           to,
-          `[教室借用申請] ${r.applicantName} 申請借用 ${r.roomName}`,
-          `<p>有一筆新的教室借用申請等待審核：</p>${reservationMailHtml(r, state.periods)}
-           <p><a href="${adminUrl}">前往管理後台審核</a></p>`,
+          auto ? `[教室借用] ${r.applicantName} 已借用 ${r.roomName}（自動核准）` : `[教室借用申請] ${r.applicantName} 申請借用 ${r.roomName}`,
+          auto
+            ? `<p>目前為「自動同意申請」，以下借用已自動核准：</p>${reservationMailHtml(r, state.periods)}
+               <p>如需調整或取消，請<a href="${adminUrl}">前往管理後台</a>。</p>`
+            : `<p>有一筆新的教室借用申請等待審核：</p>${reservationMailHtml(r, state.periods)}
+               <p><a href="${adminUrl}">前往管理後台審核</a></p>`,
         ))
         .catch((e) => console.warn("通知主管失敗", e));
     }
-    toast(auto ? "已新增並核准" : "申請已送出，等待主管審核");
+    toast(self ? "已新增並核准" : auto ? "借用成功！已自動核准" : "申請已送出，等待主管審核");
     ["fClass", "fCourse", "fPurpose"].forEach((id) => ($(id).value = ""));
     $("fNote").value = "";
     loadMonth();
@@ -338,6 +347,14 @@ $("applyForm").onsubmit = async (e) => {
     btn.disabled = false;
   }
 };
+
+// 依審核方式顯示送出按鈕上方的說明；自動同意時「直接核准」勾選框用不到，隱藏
+function showApprovalMode() {
+  $("approvalNote").textContent = state.autoApprove
+    ? "目前為自動同意：送出後立即核准，會直接顯示在借用狀況。"
+    : "送出後需由主管同意，核准後才會顯示在借用狀況。";
+  document.querySelectorAll(".manager-only").forEach((el) => (el.hidden = !state.user?.isManager || state.autoApprove));
+}
 
 // ===================== 我的申請 =====================
 
@@ -411,7 +428,9 @@ const TOUR_STEPS = [
   {
     target: '#tabs button[data-tab="mine"]',
     title: "5. 查看結果",
-    text: "主管同意後才算借到，結果在這裡看。<br>忘記怎麼用，按上方「操作說明」。",
+    text: () => (state.autoApprove
+      ? "送出的申請都記錄在這裡，不需要的可以取消。<br>忘記怎麼用，按上方「操作說明」。"
+      : "主管同意後才算借到，結果在這裡看。<br>忘記怎麼用，按上方「操作說明」。"),
   },
 ];
 
@@ -436,12 +455,15 @@ watchUser((user) => {
   $("applyForm").hidden = !user;
   if (user && !$("fTeacher").value) $("fTeacher").value = user.name;
   document.querySelectorAll(".need-login").forEach((el) => (el.hidden = !!user));
-  document.querySelectorAll(".manager-only").forEach((el) => (el.hidden = !user?.isManager));
+  showApprovalMode();
   settingsReady.then(loadMine).catch((e) => console.error(e));
 });
 
 async function init() {
-  [state.rooms, state.periods] = await Promise.all([loadRooms(), loadPeriods()]);
+  [state.rooms, state.periods, state.autoApprove] = await Promise.all([
+    loadRooms(), loadPeriods(), loadAutoApprove().catch(() => false),
+  ]);
+  showApprovalMode();
   settingsLoaded();
   $("roomFilter").innerHTML = `<option value="">全部教室</option>` +
     state.rooms.map((r) => `<option value="${r.id}">${esc(r.name)}</option>`).join("");

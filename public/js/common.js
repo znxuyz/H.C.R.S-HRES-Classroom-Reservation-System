@@ -197,6 +197,12 @@ export async function loadRooms(includeInactive = false) {
     .sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || a.name.localeCompare(b.name, "zh-Hant"));
 }
 
+// 審核方式：true＝自動同意（送出即核准），false＝手動同意（預設）
+export async function loadAutoApprove() {
+  const snap = await getDoc(doc(db, "settings", "approval"));
+  return snap.exists() && snap.data().autoApprove === true;
+}
+
 export async function loadPeriods() {
   const snap = await getDoc(doc(db, "settings", "periods"));
   const list = snap.exists() ? snap.data().list : null;

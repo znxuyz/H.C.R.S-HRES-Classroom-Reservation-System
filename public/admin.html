@@ -70,6 +70,17 @@
 
     <!-- 待審核 -->
     <section id="tab-pending" class="tab active" hidden>
+      <div class="card setting-card">
+        <div class="setting-text">
+          <div class="setting-title">審核方式：<span id="approvalMode">手動同意</span></div>
+          <p class="hint" id="approvalHint"></p>
+        </div>
+        <label class="switch">
+          <span class="switch-label">自動同意申請</span>
+          <input type="checkbox" id="autoApproveSwitch" role="switch" aria-label="自動同意申請">
+          <span class="switch-track"><span class="switch-thumb"></span></span>
+        </label>
+      </div>
       <div id="pendingList" class="list"></div>
     </section>
 

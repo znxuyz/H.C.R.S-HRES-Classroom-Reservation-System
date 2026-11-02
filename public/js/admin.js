@@ -9,7 +9,7 @@ import { BOOTSTRAP_ADMINS } from "./config.js";
 
 const $ = (id) => document.getElementById(id);
 
-const state = { user: null, rooms: [], periods: [], all: [], ready: false };
+const state = { user: null, rooms: [], periods: [], all: [], ready: false, autoApprove: false };
 
 document.title = `管理後台｜${SITE_TITLE}`;
 $("siteTitle").textContent = SITE_TITLE;
@@ -48,6 +48,45 @@ window.addEventListener("resize", () => {
   clearTimeout(fitTimer);
   fitTimer = setTimeout(() => document.querySelectorAll(".data-wrap table").forEach(fitTable), 150);
 });
+
+// ===================== 審核方式（自動／手動同意） =====================
+
+let unsubApproval = null;
+function watchApproval() {
+  unsubApproval?.();
+  unsubApproval = onSnapshot(doc(db, "settings", "approval"), (snap) => {
+    state.autoApprove = snap.exists() && snap.data().autoApprove === true;
+    showApproval();
+  }, (e) => console.warn("讀取審核方式失敗", e));
+}
+
+function showApproval() {
+  const on = state.autoApprove;
+  $("autoApproveSwitch").checked = on;
+  $("autoApproveSwitch").disabled = !state.user?.isAdmin;
+  $("approvalMode").textContent = on ? "自動同意" : "手動同意";
+  $("approvalMode").className = on ? "mode-on" : "";
+  $("approvalHint").textContent = (on
+    ? "老師送出申請後立即核准、直接顯示在借用狀況，並寄信通知主管。時段衝突仍會被擋下。"
+    : "老師送出申請後，需由主管或管理員在下方按「同意」才會核准。")
+    + (state.user?.isAdmin ? "" : "（僅管理員可切換）");
+}
+
+$("autoApproveSwitch").onchange = async (e) => {
+  const on = e.target.checked;
+  if (!state.user?.isAdmin) return showApproval();
+  const pending = state.all.filter((r) => r.status === "pending").length;
+  if (on && pending && !confirm(`開啟後，新的申請會自動核准。\n目前還有 ${pending} 筆待審核的申請，仍需在下方手動處理。確定開啟？`)) {
+    return showApproval();
+  }
+  try {
+    await setDoc(doc(db, "settings", "approval"), { autoApprove: on, updatedBy: state.user.email, updatedAt: serverTimestamp() });
+    toast(on ? "已改為自動同意申請" : "已改為手動同意申請");
+  } catch (err) {
+    toast(err.message, true);
+    showApproval();
+  }
+};
 
 // ===================== 待審核 =====================
 
@@ -523,6 +562,8 @@ watchUser(async (user) => {
   state.ready = false;
   unsubscribe?.();
   unsubscribe = null;
+  unsubApproval?.();
+  unsubApproval = null;
   if (!showAccess(user)) return;
 
   try {
@@ -532,6 +573,7 @@ watchUser(async (user) => {
       state.rooms.map((r) => `<option value="${r.id}">${esc(r.name)}</option>`).join("");
     state.ready = true;
     watchReservations();
+    watchApproval();
     // 重新顯示目前所在的分頁（網址帶 #all 等分頁時也會正確載入）
     document.querySelector("#tabs button.active")?.click();
   } catch (e) {
