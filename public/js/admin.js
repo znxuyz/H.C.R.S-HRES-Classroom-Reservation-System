@@ -1,5 +1,6 @@
 import {
   db, collection, doc, getDocs, addDoc, setDoc, updateDoc, deleteDoc, deleteField, query, where, serverTimestamp, onSnapshot,
+  runTransaction,
   watchUser, cachedUser, renderUserBox, loadRooms, loadPeriods, setupTabs, toast, esc, SITE_TITLE, ROLE_LABEL,
   TYPE_LABEL, STATUS_LABEL, monthRange, occurrences, findConflictDate, periodNames,
   describeSchedule, sendMail, reservationMailHtml, teacherOf, usageText, DOMAIN_TEXT, isAllowedEmail,
@@ -25,6 +26,7 @@ function watchReservations() {
       .sort((a, b) => (b.createdAt?.seconds ?? 0) - (a.createdAt?.seconds ?? 0));
     loadPending();
     renderAll();
+    autoApprovePending();
   }, (e) => toast("讀取借用資料失敗：" + e.message, true));
 }
 
@@ -57,6 +59,8 @@ function watchApproval() {
   unsubApproval = onSnapshot(doc(db, "settings", "approval"), (snap) => {
     state.autoApprove = snap.exists() && snap.data().autoApprove === true;
     showApproval();
+    loadPending();
+    autoApprovePending();
   }, (e) => console.warn("讀取審核方式失敗", e));
 }
 
@@ -67,7 +71,7 @@ function showApproval() {
   $("approvalMode").textContent = on ? "自動同意" : "手動同意";
   $("approvalMode").className = on ? "mode-on" : "";
   $("approvalHint").textContent = (on
-    ? "老師送出申請後立即核准、直接顯示在借用狀況，並寄信通知主管。時段衝突仍會被擋下。"
+    ? "老師送出申請後立即核准、直接顯示在借用狀況，並寄信通知主管；待審核中的申請也會一併自動同意。時段衝突的申請需手動處理。"
     : "老師送出申請後，需由主管或管理員在下方按「同意」才會核准。")
     + (state.user?.isAdmin ? "" : "（僅管理員可切換）");
 }
@@ -76,7 +80,7 @@ $("autoApproveSwitch").onchange = async (e) => {
   const on = e.target.checked;
   if (!state.user?.isAdmin) return showApproval();
   const pending = state.all.filter((r) => r.status === "pending").length;
-  if (on && pending && !confirm(`開啟後，新的申請會自動核准。\n目前還有 ${pending} 筆待審核的申請，仍需在下方手動處理。確定開啟？`)) {
+  if (on && pending && !confirm(`開啟後，新的申請會自動核准。\n目前 ${pending} 筆待審核的申請也會一併自動同意（時段衝突的除外）。確定開啟？`)) {
     return showApproval();
   }
   try {
@@ -87,6 +91,50 @@ $("autoApproveSwitch").onchange = async (e) => {
     showApproval();
   }
 };
+
+// 自動同意開啟時，把還在待審核的申請（開啟前送出的、從舊頁面送出的等）也一併核准；
+// 與已核准借用時段衝突的保留在待審核，由人工處理。
+// 用交易確認仍是「待審核」才更新，多位管理員同時開著後台也不會重複核准、重複寄信。
+let autoBusy = false;
+async function autoApprovePending() {
+  if (!state.ready || !state.autoApprove || !state.user?.isManager || autoBusy) return;
+  const pending = state.all.filter((r) => r.status === "pending" && !conflictOf(r));
+  if (!pending.length) return;
+  autoBusy = true;
+  let done = 0;
+  try {
+    for (const r of pending.sort((a, b) => (a.createdAt?.seconds ?? 0) - (b.createdAt?.seconds ?? 0))) {
+      const ref = doc(db, "reservations", r.id);
+      const changed = await runTransaction(db, async (tx) => {
+        const cur = await tx.get(ref);
+        if (!cur.exists() || cur.data().status !== "pending") return false;
+        tx.update(ref, { status: "approved", reviewNote: "", reviewedBy: "auto", reviewedByName: "自動核准", reviewedAt: serverTimestamp() });
+        return true;
+      });
+      if (!changed) continue;
+      r.status = "approved"; // 讓後面的申請以這筆為準檢查衝突
+      done++;
+      sendMail([r.applicantEmail], `[教室借用] 您的 ${r.roomName} 借用申請已核准`,
+        `<p>${esc(r.applicantName)} 老師您好，您的教室借用申請<strong>已核准</strong>（自動同意）。</p>
+         ${reservationMailHtml(r, state.periods)}`);
+    }
+  } catch (e) {
+    console.warn("自動同意失敗", e);
+  } finally {
+    autoBusy = false;
+  }
+  if (done) toast(`已自動同意 ${done} 筆待審核申請`);
+}
+
+// 與已核准的借用衝突時，回傳第一個衝突的說明
+function conflictOf(r) {
+  for (const x of state.all) {
+    if (x.id === r.id || x.status !== "approved") continue;
+    const ds = findConflictDate(r, x);
+    if (ds) return `${ds} ${periodNames(x.periodIds, state.periods).join("、")} 已被 ${teacherOf(x)} 借用`;
+  }
+  return null;
+}
 
 // ===================== 待審核 =====================
 
@@ -102,6 +150,7 @@ function loadPending() {
     return `<div class="card item">
       <div class="item-main">
         <div class="item-title">${esc(r.roomName)}｜${esc(r.applicantName)} <span class="muted">${esc(r.applicantEmail)}</span></div>
+        ${state.autoApprove && conflictOf(r) ? `<div class="conflict-note">時段衝突，無法自動同意：${esc(conflictOf(r))}</div>` : ""}
         <div>${TYPE_LABEL[r.type]}｜${esc(describeSchedule(r))}${r.type !== "once" ? `（共 ${n} 天）` : ""}</div>
         <div>節次：${esc(periodNames(r.periodIds, state.periods).join("、"))}</div>
         <div>教師：${esc(teacherOf(r))}${usageText(r) ? `｜${esc(usageText(r))}` : ""}${r.note ? `｜備註：${esc(r.note)}` : ""}</div>

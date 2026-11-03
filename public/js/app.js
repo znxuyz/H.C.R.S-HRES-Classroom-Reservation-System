@@ -318,16 +318,26 @@ $("applyForm").onsubmit = async (e) => {
       ...(self ? { reviewedBy: state.user.email, reviewedByName: state.user.name, reviewedAt: serverTimestamp() } : {}),
       ...(!self && auto ? { reviewedBy: "auto", reviewedByName: "自動核准", reviewedAt: serverTimestamp() } : {}),
     });
-    await addDoc(collection(db, "reservations"), r);
+    try {
+      await addDoc(collection(db, "reservations"), r);
+    } catch (err) {
+      if (!(auto && !self && err.code === "permission-denied")) throw err;
+      // Firebase 規則尚未更新時無法直接核准：改送「待審核」，管理後台開著時會自動同意
+      console.warn("無法直接核准，改為待審核", err);
+      Object.assign(r, { status: "pending" });
+      delete r.reviewedBy; delete r.reviewedByName; delete r.reviewedAt;
+      await addDoc(collection(db, "reservations"), r);
+    }
 
+    const approved = r.status === "approved"; // 規則未更新而改送待審核時為 false
     if (!self) {
       // 申請已存好；通知信寄送失敗不影響申請結果
       const adminUrl = new URL("admin.html", location.href).href;
       managerEmails()
         .then((to) => sendMail(
           to,
-          auto ? `[教室借用] ${r.applicantName} 已借用 ${r.roomName}（自動核准）` : `[教室借用申請] ${r.applicantName} 申請借用 ${r.roomName}`,
-          auto
+          approved ? `[教室借用] ${r.applicantName} 已借用 ${r.roomName}（自動核准）` : `[教室借用申請] ${r.applicantName} 申請借用 ${r.roomName}`,
+          approved
             ? `<p>目前為「自動同意申請」，以下借用已自動核准：</p>${reservationMailHtml(r, state.periods)}
                <p>如需調整或取消，請<a href="${adminUrl}">前往管理後台</a>。</p>`
             : `<p>有一筆新的教室借用申請等待審核：</p>${reservationMailHtml(r, state.periods)}
@@ -335,7 +345,7 @@ $("applyForm").onsubmit = async (e) => {
         ))
         .catch((e) => console.warn("通知主管失敗", e));
     }
-    toast(self ? "已新增並核准" : auto ? "借用成功！已自動核准" : "申請已送出，等待主管審核");
+    toast(self ? "已新增並核准" : approved ? "借用成功！已自動核准" : "申請已送出，等待主管審核");
     ["fClass", "fCourse", "fPurpose"].forEach((id) => ($(id).value = ""));
     $("fNote").value = "";
     loadMonth();

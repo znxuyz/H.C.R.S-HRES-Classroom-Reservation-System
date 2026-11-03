@@ -600,6 +600,7 @@ fieldset.field > .inline:has(input:checked) { border-color: var(--primary); back
 .switch:has(input:disabled) { cursor: not-allowed; opacity: .6; }
 @media (prefers-reduced-motion: reduce) { .switch-track, .switch-thumb { transition: none; } }
 
+.conflict-note { margin: 2px 0 6px !important; padding: 6px 10px; border-radius: 8px; background: var(--danger-soft); color: var(--danger) !important; font-size: 13.5px !important; font-weight: 500; }
 .approval-note { margin: 0 0 12px; padding: 10px 14px; border-radius: var(--radius-sm); background: var(--primary-soft); color: var(--primary); font-size: 14px; font-weight: 500; }
 
 /* ---------- 清單 ---------- */
